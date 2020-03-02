@@ -51,18 +51,19 @@ var printDetails: boolean;
 var logEach: number;
 
 export function sayHi() {
+  console.log("SayHi")
   numBlocksInput = document.getElementById(
-    "num-blocks-input"
+    "num-blocks-input" //blocks/page input
   ) as HTMLInputElement;
   numPagesInput = document.getElementById(
-    "num-pages-input"
+    "num-pages-input" //num pages input
   ) as HTMLInputElement;
-  inputBlock = document.getElementById("block-input") as HTMLInputElement;
-  logEachInput = document.getElementById("log-each-input") as HTMLInputElement;
-  statsTarget = document.getElementById("stats-info");
-  detailsInput = document.getElementById("details-input") as HTMLInputElement;
+  inputBlock = document.getElementById("block-input") as HTMLInputElement; //skipchain number
+  logEachInput = document.getElementById("log-each-input") as HTMLInputElement; //log each input
+  statsTarget = document.getElementById("stats-info"); //$???
+  detailsInput = document.getElementById("details-input") as HTMLInputElement; //print details
 
-  roster = Roster.fromTOML(rosterStr);
+  roster = Roster.fromTOML(rosterStr);//server ID
   if (!roster) {
     prependLog("roster is undefined");
     return;
@@ -108,6 +109,7 @@ export function sayHi() {
 // the user changed them, subscribe to the observer and then call the fetch
 // function.
 function load(e: Event) {
+  console.log("LOAD")
   if (lastBlock === undefined) {
     prependLog("please first load a page");
     return;
@@ -132,7 +134,9 @@ function load(e: Event) {
     nextID = lastBlock.forwardLinks[0].to.toString("hex");
   }
   const pageSize = parseInt(numBlocksInput.value);
+  console.log("numBlocksInput : "+ numBlocksInput.value)
   const numPages = parseInt(numPagesInput.value);
+  console.log("numPagesInput : "+ numPagesInput.value)
   logEach = parseInt(logEachInput.value);
   printDetails = detailsInput.checked;
   const notifier = new Subject();
@@ -166,6 +170,7 @@ function printBlocks(
   numPages: number,
   backward: boolean
 ) {
+  console.log("printBlocks")
   var bid: Buffer;
   try {
     bid = hex2Bytes(firstBlockID);
@@ -255,6 +260,7 @@ function shortBlockString(
   blockIndex: number,
   pageNum: number
 ): string {
+  console.log("shortBlockString")
   var output = `- block: ${blockIndex}, page ${pageNum}, hash: ${block.hash.toString(
     "hex"
   )}`;
@@ -267,6 +273,8 @@ function longBlockString(
   blockIndex: number,
   pageNum: number
 ): string {
+  console.log("longBlockString")
+
   var output = shortBlockString(block, blockIndex, pageNum);
   const payload = block.payload;
   const body = DataBody.decode(payload);
@@ -330,6 +338,8 @@ var keepScroll: HTMLInputElement;
 var t0: number;
 
 export function prependLog(...nodes: Array<Node | any>) {
+  console.log("prependLog")
+
   const wrapper = document.createElement("div");
   wrapper.classList.add("log-entry-wrapper");
   const contentWrapper = document.createElement("pre");
@@ -348,6 +358,8 @@ export function prependLog(...nodes: Array<Node | any>) {
 }
 
 function updateScroll() {
+  console.log("updateScroll")
+
   if (keepScroll === undefined) {
     keepScroll = document.getElementById("keep-scroll") as HTMLInputElement;
   }
@@ -377,15 +389,14 @@ function printStat(startTime: number, count: number) {
 }
 
 const rosterStr = `[[servers]]
-  Address = "tls://188.166.35.173:7770"
-  Url = "https://wookiee.ch/conode"
-  Suite = "Ed25519"
-  Public = "a59fc58c0a445b70dcd57e01603a714a2ee99c1cc14ca71780383abada5d7143"
-  Description = "Wookiee's Cothority"
-  [servers.Services]
-    [servers.Services.ByzCoin]
-      Public = "70c192537778a53abb9315979f48e170da9182b324c7974462cbdde90fc0c51d440e2de266a81fe7a3d9d2b6665ef07ba3bbe8df027af9b8a3b4ea6569d7f72a41f0dfe4dc222aa8fd4c99ced2212d7d1711267f66293732c88e8d43a2cf6b3e2e1cd0c57b8f222a73a393e70cf81e53a0ce8ed2a426e3b0fa6b0da30ff27b1a"
-      Suite = "bn256.adapter"
-    [servers.Services.Skipchain]
-      Public = "63e2ed93333bd0888ed2b5e51b5e2544831b4d79dead571cf67604cdd96bc0212f68e582468267697403d7ed418e70ed9fcb01940e4c603373994ef00c04542c24091939bddca515381e0285ab805826cec457346be482e687475a973a20fca48f16c76e352076ccc0c866d7abb3ac50d02f9874d065f85404a0127efc1acf49"
-      Suite = "bn256.adapter"`;
+Address = "tls://127.0.0.1:7770"
+Suite = "Ed25519"
+Public = "581255c918bf71d14d20c0e1525c293e7fd0bcca792b8662352a8742ab4920fc"
+Description = "cothority_local"
+[servers.Services]
+  [servers.Services.ByzCoin]
+    Public = "27a562854d68d55f62baa42497075cad283cf87facb0ca73034ac4b50a6140e93af4049d827d82d3538b54d3f175fb40bec78a679f396a9f479b7fc3c475ff9604ce524cc6beb00b013f4b71f9b1786148189df9ad83dddb03bd5a40d928aa0405e77d07d31212c37ee026d824fc385642b61b29120eba6d200a42eab2ae5723"
+    Suite = "bn256.adapter"
+  [servers.Services.Skipchain]
+    Public = "58f3e2bbaf4ca4a847ae98e46af5095182b4e1e63b08aabac97729735d2ca9126d0da098092cf84ddf08ce0a292142bde948deddaf00b56ec64668539ea6cf301373f5a7ec95af7b881595dbb277f4520f5a18c8da8806b52d489dce7a137cc966eafdcf145f16ccd589f1957f93fec40bd20504a038cfa8e2b3117e992597fa"
+    Suite = "bn256.adapter"`;
