@@ -6,12 +6,13 @@ import { ByzCoinRPC } from '@dedis/cothority/byzcoin';
 import { PaginateResponse, PaginateRequest } from '@dedis/cothority/byzcoin/proto/stream';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { DataBody } from '@dedis/cothority/byzcoin/proto';
 
 var roster : Roster;
 var ws: WebSocketAdapter;
 const firstBlockID  = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3";
 const pageSize = 1
-const numPages = 2
+const numPages = 1
 const logEach = 1
 const printDetails: boolean = false
 const subject = new Subject<number>();
@@ -35,7 +36,6 @@ export function sayHi(){
       var pageDone = 0;
       subject.pipe(takeUntil(notifier)).subscribe({
         next: (i: number) => {
-          console.log(i)
           if (i == pageSize) {
             pageDone++;
             if (pageDone == numPages) {
@@ -46,14 +46,23 @@ export function sayHi(){
         }
       });
 
-      var dataB = getData();
+      var dataB = getBlocks();
+      console.log("data:")
+      console.log(dataB)
+      console.log("before for")
+      for (let i = 0; i < dataB.length; i++){
+        console.log("during for")
+        printdata(dataB[i])
+      }
+      console.log("after for")
     })
 }
 
 
-function getData(){
+function getBlocks(){
   var bid: Buffer;
   var backward:boolean = false
+  var dataReturn : SkipBlock[] = []
   try {
     bid = hex2Bytes(firstBlockID);
   } catch (error) {
@@ -102,14 +111,9 @@ function getData(){
             }
             if (count % logEach == 0) {
               subject.next(runCount);
-              if (printDetails) {
-                  console.log(data.blocks[i])
-                  //longBlockString(data.blocks[i], count, data.pagenumber)
-
-              } else {
-                console.log(data.blocks[i])
-                //shortBlockString(data.blocks[i], count, data.pagenumber)
-              }
+              console.log(data.blocks[i])
+              dataReturn.push(data.blocks[i])
+              printdata(data.blocks[i])
             }
           }
           lastBlock = data.blocks[data.blocks.length - 1];
@@ -132,11 +136,44 @@ function getData(){
     const messageByte = Buffer.from(message.$type.encode(message).finish());
     ws.send(messageByte);
   }
-
-  return 0
+  console.log("return getblockF")
+  return dataReturn
 }
 
-
+function printdata(block:SkipBlock){
+  const payload = block.payload
+  const body = DataBody.decode(payload)
+  body.txResults.forEach((transaction, i)=>{
+    console.log("\n-- Transaction: "+i)
+    transaction.clientTransaction.instructions.forEach((instruction, j) => {
+      console.log("\n--- Instruction "+j)
+      console.log("\n---- Hash: " +  instruction.hash().toString("hex"))
+      console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
+      if (instruction.spawn !== null) {
+        console.log("\n---- Spawn:")
+        console.log("\n----- ContractID: " + instruction.spawn.contractID)
+        console.log("\n----- Args:")
+        instruction.spawn.args.forEach((arg, _) => {
+          console.log("\n------ Arg:")
+          console.log("\n------- Name:" + arg.name)
+          console.log("\n------- Value: "+arg.value)
+        });
+      } else if (instruction.invoke !== null) {
+        console.log("\n---- Invoke:")
+        console.log("\n----- ContractID: "+instruction.invoke.contractID)
+        console.log("\n----- Args:")
+        instruction.invoke.args.forEach((arg, _) => {
+          console.log("\n------ Arg:")
+          console.log("\n------- Name: " +arg.name)
+          console.log("\n------- Value: " +arg.value)
+        });
+      } else if (instruction.delete !== null) {
+        console.log("\n---- Delete: " +instruction.delete)
+      }
+    });
+  });
+return 0
+}
 
 
 
