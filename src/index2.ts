@@ -87,7 +87,7 @@ export function sayHi() {
       var startTime = performance.now();
       var pageDone = 0;
       subject.pipe(takeUntil(notifier)).subscribe({
-        next: (i: number) => {
+        next: (i: number) => { //appeler pour chaque block
           if (i == pageSize) {
             pageDone++;
             if (pageDone == numPages) {
@@ -220,7 +220,7 @@ function printBlocks(
               count++;
             }
             if (count % logEach == 0) {
-              subject.next(runCount);
+              subject.next(runCount); //quand on fait next, on appelle le subject pour chaque fois qu on a une instance utile avec les paramètres. 
               if (printDetails) {
                 prependLog(
                   longBlockString(data.blocks[i], count, data.pagenumber)

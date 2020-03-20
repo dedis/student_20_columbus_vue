@@ -5,20 +5,22 @@ import { WebSocketConnection } from '@dedis/cothority/network/connection';
 import { ByzCoinRPC } from '@dedis/cothority/byzcoin';
 import { PaginateResponse, PaginateRequest } from '@dedis/cothority/byzcoin/proto/stream';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil, last, first } from 'rxjs/operators';
 import { DataBody } from '@dedis/cothority/byzcoin/proto';
 
 var roster : Roster;
 var ws: WebSocketAdapter;
-const firstBlockID  = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3";
-const pageSize = 1
-const numPages = 1
-const logEach = 1
-const printDetails: boolean = false
+var firstBlockID  = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3";
+const pageSize = 10 //combien de blocks je veux
+const numPages = 10 //nombre de requete pour faire du streaming: 50 blocks, en 5 requete asynchrone. 
+const logEach = 1 //nombre de block total: pagesize * numpages
 const subject = new Subject<number>();
 var lastBlock:SkipBlock
-
+var contractID = ""
+var blocks = []
 export function sayHi(){
+  console.log("*****************Say Hi*****************")
+
   roster = Roster.fromTOML(rosterStr);
   if(!roster){
     console.log("Roster is undefined")
@@ -32,37 +34,17 @@ export function sayHi(){
         ws.close(1000, "new load");
         ws = undefined;
       }
-      const notifier = new Subject();
-      var pageDone = 0;
-      subject.pipe(takeUntil(notifier)).subscribe({
-        next: (i: number) => {
-          if (i == pageSize) {
-            pageDone++;
-            if (pageDone == numPages) {
-              notifier.next();
-              notifier.complete();
-            }
-          }
-        }
-      });
-
-      var dataB = getBlocks();
-      console.log("data:")
-      console.log(dataB)
-      console.log("before for")
-      for (let i = 0; i < dataB.length; i++){
-        console.log("during for")
-        printdata(dataB[i])
-      }
-      console.log("after for")
+      getBlock();
     })
+    document.getElementById("next-button").addEventListener("click", nextMINE)
+    document.getElementById("browse").addEventListener("click", browse)
 }
 
+function getBlock(){
+  console.log("*****************Get Blocks*****************")
 
-function getBlocks(){
   var bid: Buffer;
   var backward:boolean = false
-  var dataReturn : SkipBlock[] = []
   try {
     bid = hex2Bytes(firstBlockID);
   } catch (error) {
@@ -111,9 +93,8 @@ function getBlocks(){
             }
             if (count % logEach == 0) {
               subject.next(runCount);
-              console.log(data.blocks[i])
-              dataReturn.push(data.blocks[i])
-              printdata(data.blocks[i])
+              printdata(data.blocks[i], count, data.pagenumber)
+
             }
           }
           lastBlock = data.blocks[data.blocks.length - 1];
@@ -136,43 +117,164 @@ function getBlocks(){
     const messageByte = Buffer.from(message.$type.encode(message).finish());
     ws.send(messageByte);
   }
-  console.log("return getblockF")
-  return dataReturn
 }
 
-function printdata(block:SkipBlock){
+function printdata(block:SkipBlock, blockIndex:number, pageNum: number){
+  console.log("*****************Print Data*****************")
+
   const payload = block.payload
   const body = DataBody.decode(payload)
+  console.log("- block: "+ blockIndex + ", page "+pageNum+ ", hash: "+block.hash.toString(
+    "hex"))
   body.txResults.forEach((transaction, i)=>{
     console.log("\n-- Transaction: "+i)
     transaction.clientTransaction.instructions.forEach((instruction, j) => {
       console.log("\n--- Instruction "+j)
       console.log("\n---- Hash: " +  instruction.hash().toString("hex"))
       console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-      if (instruction.spawn !== null) {
-        console.log("\n---- Spawn:")
-        console.log("\n----- ContractID: " + instruction.spawn.contractID)
-        console.log("\n----- Args:")
-        instruction.spawn.args.forEach((arg, _) => {
-          console.log("\n------ Arg:")
-          console.log("\n------- Name:" + arg.name)
-          console.log("\n------- Value: "+arg.value)
-        });
-      } else if (instruction.invoke !== null) {
-        console.log("\n---- Invoke:")
-        console.log("\n----- ContractID: "+instruction.invoke.contractID)
-        console.log("\n----- Args:")
-        instruction.invoke.args.forEach((arg, _) => {
-          console.log("\n------ Arg:")
-          console.log("\n------- Name: " +arg.name)
-          console.log("\n------- Value: " +arg.value)
-        });
-      } else if (instruction.delete !== null) {
-        console.log("\n---- Delete: " +instruction.delete)
-      }
     });
   });
 return 0
+}
+
+function nextMINE(e?: Event){
+  console.log("*****************NEXT*****************")
+  if (lastBlock === undefined) {
+    console.log("please first load a page");
+    return;
+  }
+  var nextID: string;
+  if (lastBlock.forwardLinks.length == 0) {
+    console.log("no more blocks to fetch (list of forwardlinks empty");
+    return;
+  }
+  nextID = lastBlock.forwardLinks[0].to.toString("hex");
+  firstBlockID = nextID
+  getBlock()
+}
+
+function browse(e:Event){
+  console.log("*****************Browse*****************")
+
+  
+  firstBlockID  = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3";
+  contractID = (document.getElementById("contractID") as HTMLInputElement).value
+  console.log(contractID)
+  
+
+  var bid: Buffer;
+  var backward:boolean = false
+  console.log(lastBlock.forwardLinks.length)
+
+  console.log(lastBlock.forwardLinks.length)
+  console.log(lastBlock.hash.toString("hex"))
+
+  try {
+    bid = hex2Bytes(firstBlockID);
+  } catch (error) {
+    console.log("failed to parse the block ID: ", error);
+    return;
+  }
+
+  try {
+    var conn = new WebSocketConnection(
+      roster.list[0].getWebSocketAddress(),
+      ByzCoinRPC.serviceName
+    );
+  } catch (error) {
+    console.log("error creating conn: ", error);
+    return;
+  }
+  if (ws === undefined) {
+    console.log("UNDEFINED?")
+
+
+    conn.sendStream<PaginateResponse>(
+      new PaginateRequest({
+        startid: bid,
+        pagesize: pageSize,
+        numpages: numPages,
+        backward: backward
+      }),
+      PaginateResponse).subscribe({
+      // ws callback "onMessage":
+        next: ([data, ws])=>{
+          nextB([data, ws])
+        },
+        complete: () => {
+          console.log("closed");
+        },
+        error: (err: Error) => {
+          console.log("error: ", err);
+          ws = undefined;
+        }
+      });
+  } else {
+    console.log(" OR DEF?")
+
+    const message = new PaginateRequest({
+      startid: bid,
+      pagesize: pageSize,
+      numpages: numPages,
+      backward: backward
+    });
+    const messageByte = Buffer.from(message.$type.encode(message).finish());
+    ws.send(messageByte);
+  }
+
+  
+}
+
+function nextB([data, localws]: [PaginateResponse, WebSocketAdapter]){
+  console.log("NEXTB EARLY")
+
+  var count = 0
+    if (data.errorcode != 0) {
+      console.log(
+        `got an error with code ${data.errorcode} : ${data.errortext}`
+      );
+      return;
+    }
+    if( localws !== undefined) {
+      ws = localws
+    }
+    var runCount = 0;
+    for (var i = 0; i < data.blocks.length; i++) {
+      runCount++;
+      if (data.backward) {
+        count--;
+      } else {
+        count++;
+      }
+      if (count % logEach == 0) {
+        var block = data.blocks[i]
+        subject.next(runCount);
+        //printdata(block, count, data.pagenumber)
+        firstBlockID = block.hash.toString("hex")
+        const payload = block.payload
+        const body = DataBody.decode(payload)
+        body.txResults.forEach((transaction)=> {
+          transaction.clientTransaction.instructions.forEach((instruction)=>{
+            if(instruction.instanceID.toString("hex") == contractID){
+                console.log("*****************Contract match found*****************")
+                
+                printdata(block, count, data.pagenumber)
+              }
+          })
+        })
+
+      }
+    }
+    lastBlock = data.blocks[data.blocks.length - 1];
+    firstBlockID = data.blocks[0].hash.toString("hex");
+    var request = new PaginateRequest({
+        startid: hex2Bytes(firstBlockID),
+        pagesize: pageSize,
+        numpages: numPages,
+        backward: false
+      })
+    console.log("FIN NEXTB")
+    localws.send(Buffer.from(request))
 }
 
 
