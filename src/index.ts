@@ -14,10 +14,11 @@ var firstBlockID  = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f
 const pageSize = 1 //combien de blocks je veux
 const numPages = 1 //nombre de requete pour faire du streaming: 50 blocks, en 5 requete asynchrone. 
 const logEach = 1 //nombre de block total: pagesize * numpages
-const subject = new Subject<number>();
+const subject = new Subject<[number, SkipBlock]>();
 var lastBlock:SkipBlock
 var contractID = ""
 var blocks: string[] = []
+
 export function sayHi(){
   console.log("*****************Say Hi*****************")
 
@@ -34,13 +35,37 @@ export function sayHi(){
         ws.close(1000, "new load");
         ws = undefined;
       }
-      getBlock();
+      const notifier = new Subject();
+      var pageDone = 0;
+      var repeatCounter = 0;
+      subject.pipe(takeUntil(notifier)).subscribe({
+        next: ([i, skipBlock]) => {
+          if (i == pageSize) {
+            pageDone++;
+            if (pageDone == numPages) {
+
+              //if (skipBlock.forwardLinks.length != 0) {
+
+              if (repeatCounter < 1) {
+                repeatCounter++;
+                const next = skipBlock.forwardLinks[0].to.toString("hex");
+                pageDone = 0;
+                getBlock(next);
+              } else {
+                notifier.next();
+                notifier.complete();
+              }
+            }
+          }
+        }
+      });
+      getBlock(firstBlockID);
     })
     document.getElementById("next-button").addEventListener("click", nextMINE)
     document.getElementById("browse").addEventListener("click", browse)
 }
 
-function getBlock(){
+function getBlock(firstBlockID:string){
   console.log("*****************Get Blocks*****************")
 
   var bid: Buffer;
@@ -92,9 +117,8 @@ function getBlock(){
               count++;
             }
             if (count % logEach == 0) {
-              subject.next(runCount);
+              subject.next([runCount, data.blocks[i]]);
               printdata(data.blocks[i], count, data.pagenumber)
-
             }
           }
           lastBlock = data.blocks[data.blocks.length - 1];
@@ -155,123 +179,154 @@ function nextMINE(e?: Event){
   }
   firstBlockID = lastBlock.forwardLinks[0].to.toString("hex");
   
-  getBlock()
+  getBlock(firstBlockID)
 }
 
+
 function browse(e:Event){
-  firstBlockID  = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3";
+  console.log("*****************browse*****************")
+
   if (lastBlock === undefined) {
-    console.log("please first load a page"); //TOBE CHANGED AFTERWARDS
+    console.log("please first load a page");
     return;
   }
+
+  printdata(lastBlock, 0, 0)
+  var nextID: string;
+
   if (lastBlock.forwardLinks.length == 0) {
     console.log("no more blocks to fetch (list of forwardlinks empty");
     return;
   }
-  for(let i = 0; i < 5; i++){
-    getBlock()
-    firstBlockID = lastBlock.forwardLinks[0].to.toString("hex");
-    console.log("firstblockID:")
-    console.log(firstBlockID)
-  }
+  nextID = lastBlock.forwardLinks[0].to.toString("hex");
+  
+  const notifier = new Subject();
+  var pageDone = 0;
+  var repeatCounter = 0
+  contractID = (document.getElementById("contractID") as HTMLInputElement).value
+  subject.pipe(takeUntil(notifier)).subscribe({
+    // As a reminder: if the observer sends an error or a "complete" message,
+    // we cannot use the observer anymore. This is why the ws callback does not
+    // send an observer error if one occurs, since we need to keep the same
+    // observer during the entire session.
+    next: ([i, skipBlock]) => {
+      if (i == pageSize) {
+        pageDone++;
+        if (pageDone == numPages) {
+          //if (repeatCounter < 100) {
 
+          if (skipBlock.forwardLinks.length != 0) {
+            repeatCounter++
+            var next: string = skipBlock.forwardLinks[0].to.toString("hex");
+            pageDone = 0;
+            getBlockB(next, pageSize, numPages);
+          } else{
+            notifier.next();
+            notifier.complete();
+          }
+        }
+      }
+    }
+  });
+  getBlockB(nextID, pageSize, numPages);
 }
 
-// function browse(e:Event){
-//   console.log("*****************Browse*****************")
-  
-//   //firstBlockID  = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3";
-//   contractID = (document.getElementById("contractID") as HTMLInputElement).value
-//   console.log(contractID)
-  
-//   var bid: Buffer;
-//   var backward:boolean = false
-//   var boucle = 0
-//   while( boucle < 10/*lastBlock.forwardLinks != null*/){
-//     firstBlockID = lastBlock.forwardLinks[0].to.toString("hex");
-//     boucle += 1
 
-//     try {
-//       bid = hex2Bytes(firstBlockID);
-//     } catch (error) {
-//       console.log("failed to parse the block ID: ", error);
-//       return;
-//     }
 
-//     try {
-//       var conn = new WebSocketConnection(
-//         roster.list[0].getWebSocketAddress(),
-//         ByzCoinRPC.serviceName
-//       );
-//     } catch (error) {
-//       console.log("error creating conn: ", error);
-//       return;
-//     }
-//     conn.sendStream<PaginateResponse>(
-//       new PaginateRequest({
-//         startid: bid,
-//         pagesize: pageSize,
-//         numpages: numPages,
-//         backward: backward
-//       }),
-//       PaginateResponse).subscribe({
-//       // ws callback "onMessage":
-//         next: ([data, ws])=>{
-//           nextB([data, ws])
-//           lastBlock = data.blocks[data.blocks.length - 1];
-//         },
-//         complete: () => {
-//           console.log("closed");
-//         },
-//         error: (err: Error) => {
-//           console.log("error: ", err);
-//           ws = undefined;
-//         }
-//       });
-//     }
-// }
 
-// function nextB([data, localws]: [PaginateResponse, WebSocketAdapter]){
-//   var count = 0
-//     if (data.errorcode != 0) {
-//       console.log(
-//         `got an error with code ${data.errorcode} : ${data.errortext}`
-//       );
-//       return;
-//     }
-//     if( localws !== undefined) {
-//       ws = localws
-//     }
-//     var runCount = 0;
-//     console.log("Length: "+data.blocks.length)
-//     for (var i = 0; i < data.blocks.length; i++) {
-//       runCount++;
-//       if (data.backward) {
-//         count--;
-//       } else {
-//         count++;
-//       }
-//       if (count % logEach == 0) {
-//         var block = data.blocks[i]
-//         subject.next(runCount);
-//         //printdata(block, count, data.pagenumber)
-//         const payload = block.payload
-//         const body = DataBody.decode(payload)
-//         body.txResults.forEach((transaction)=> {
-//           transaction.clientTransaction.instructions.forEach((instruction)=>{
-//             /*if(instruction.instanceID.toString("hex") == contractID){
-//                 console.log("*****************Contract match found*****************")
-//                 blocks.push(data.blocks[i].hash.toString("hex"))
-//                 printdata(block, count, data.pagenumber)
-//               }*/
-//               printdata(block, count, data.pagenumber)
-//           })
-//         })
+function getBlockB(
+  firstBlockID: string,
+  pageSize: number,
+  numPages: number){
+  console.log("*****************getBlockB*****************")
 
-//       }
-//     }
-//     firstBlockID = data.blocks[data.blocks.length-1].forwardLinks[0].to.toString("hex");
-// }
+  var bid: Buffer;
+  try {
+    bid = hex2Bytes(firstBlockID);
+  } catch (error) {
+    console.log("failed to parse the block ID: ", error);
+    return;
+  }
+
+  try {
+    var conn = new WebSocketConnection(
+      roster.list[0].getWebSocketAddress(),
+      ByzCoinRPC.serviceName
+    );
+  } catch (error) {
+    console.log("error creating conn: ", error);
+    return;
+  }
+  //if (ws === undefined) {   /DISCUTER DE CA?
+    conn.sendStream<PaginateResponse>(
+      new PaginateRequest({
+        startid: bid,
+        pagesize: pageSize,
+        numpages: numPages,
+        backward: false
+      }),
+      PaginateResponse).subscribe({
+      // ws callback "onMessage":
+        next: ([data, ws])=>{
+          nextB([data, ws])
+        },
+        complete: () => {
+          console.log("closed");
+        },
+        error: (err: Error) => {
+          console.log("error: ", err);
+          ws = undefined;
+        }
+      });
+    /*}else{
+      const message = new PaginateRequest({
+        startid: bid,
+        pagesize: pageSize,
+        numpages: numPages,
+        backward: false
+      });
+      const messageByte = Buffer.from(message.$type.encode(message).finish());
+      ws.send(messageByte);
+    }*/
+    
+}
+
+function nextB([data, localws]: [PaginateResponse, WebSocketAdapter]){
+  var count = 0
+    if (data.errorcode != 0) {
+      console.log(
+        `got an error with code ${data.errorcode} : ${data.errortext}`
+      );
+      return;
+    }
+    if( localws !== undefined) {
+      ws = localws
+    }
+    var runCount = 0;
+    for (var i = 0; i < data.blocks.length; i++) {
+      runCount++;
+      count++;
+      if (count % logEach == 0) {
+        var block = data.blocks[i]
+        subject.next([runCount, data.blocks[i]]);
+        const payload = block.payload
+        const body = DataBody.decode(payload)
+        body.txResults.forEach((transaction)=> {
+          transaction.clientTransaction.instructions.forEach((instruction)=>{
+            /*if(instruction.instanceID.toString("hex") == contractID){
+                console.log("*****************Contract match found*****************")
+                blocks.push(data.blocks[i].hash.toString("hex"))
+                printdata(block, count, data.pagenumber)
+              }*/
+              //printdata(block, count, data.pagenumber)
+              console.log("- block: "+ count + ", page "+data.pagenumber+ ", hash: "+block.hash.toString("hex"))
+            })
+        })
+
+      }
+    }
+    lastBlock = data.blocks[data.blocks.length-1]
+}
 
 
 
