@@ -13,7 +13,7 @@ var ws: WebSocketAdapter;
 var firstBlockID  = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3";
 const pageSize = 1 //combien de blocks je veux
 const numPages = 1 //nombre de requete pour faire du streaming: 50 blocks, en 5 requete asynchrone. 
-const logEach = 1 //nombre de block total: pagesize * numpages
+                   //nombre de block total: pagesize * numpages
 const subject = new Subject<[number, SkipBlock]>();
 var lastBlock:SkipBlock
 var contractID = ""
@@ -35,30 +35,6 @@ export function sayHi(){
         ws.close(1000, "new load");
         ws = undefined;
       }
-      const notifier = new Subject();
-      var pageDone = 0;
-      var repeatCounter = 0;
-      subject.pipe(takeUntil(notifier)).subscribe({
-        next: ([i, skipBlock]) => {
-          if (i == pageSize) {
-            pageDone++;
-            if (pageDone == numPages) {
-
-              //if (skipBlock.forwardLinks.length != 0) {
-
-              if (repeatCounter < 1) {
-                repeatCounter++;
-                const next = skipBlock.forwardLinks[0].to.toString("hex");
-                pageDone = 0;
-                getBlock(next);
-              } else {
-                notifier.next();
-                notifier.complete();
-              }
-            }
-          }
-        }
-      });
       getBlock(firstBlockID);
     })
     document.getElementById("next-button").addEventListener("click", nextMINE)
@@ -116,10 +92,9 @@ function getBlock(firstBlockID:string){
             } else {
               count++;
             }
-            if (count % logEach == 0) {
-              subject.next([runCount, data.blocks[i]]);
-              printdata(data.blocks[i], count, data.pagenumber)
-            }
+            subject.next([runCount, data.blocks[i]]);
+            printdata(data.blocks[i], count, data.pagenumber)
+            
           }
           lastBlock = data.blocks[data.blocks.length - 1];
         },
@@ -191,14 +166,11 @@ function browse(e:Event){
     return;
   }
 
-  printdata(lastBlock, 0, 0)
-  var nextID: string;
-
   if (lastBlock.forwardLinks.length == 0) {
     console.log("no more blocks to fetch (list of forwardlinks empty");
     return;
   }
-  nextID = lastBlock.forwardLinks[0].to.toString("hex");
+  var nextID: string = lastBlock.forwardLinks[0].to.toString("hex");
   
   const notifier = new Subject();
   var pageDone = 0;
@@ -213,8 +185,6 @@ function browse(e:Event){
       if (i == pageSize) {
         pageDone++;
         if (pageDone == numPages) {
-          //if (repeatCounter < 100) {
-
           if (skipBlock.forwardLinks.length != 0) {
             repeatCounter++
             var next: string = skipBlock.forwardLinks[0].to.toString("hex");
@@ -306,24 +276,24 @@ function nextB([data, localws]: [PaginateResponse, WebSocketAdapter]){
     for (var i = 0; i < data.blocks.length; i++) {
       runCount++;
       count++;
-      if (count % logEach == 0) {
-        var block = data.blocks[i]
-        subject.next([runCount, data.blocks[i]]);
-        const payload = block.payload
-        const body = DataBody.decode(payload)
-        body.txResults.forEach((transaction)=> {
-          transaction.clientTransaction.instructions.forEach((instruction)=>{
-            /*if(instruction.instanceID.toString("hex") == contractID){
-                console.log("*****************Contract match found*****************")
-                blocks.push(data.blocks[i].hash.toString("hex"))
-                printdata(block, count, data.pagenumber)
-              }*/
-              //printdata(block, count, data.pagenumber)
-              console.log("- block: "+ count + ", page "+data.pagenumber+ ", hash: "+block.hash.toString("hex"))
-            })
-        })
+      var block = data.blocks[i]
+      subject.next([runCount, data.blocks[i]]);
+      const payload = block.payload
+      const body = DataBody.decode(payload)
+      body.txResults.forEach((transaction)=> {
+        transaction.clientTransaction.instructions.forEach((instruction)=>{
+          if(instruction.instanceID.toString("hex") == contractID){
+              console.log("*****************Contract match found*****************")
+              blocks.push(data.blocks[i].hash.toString("hex"))
+              printdata(block, count, data.pagenumber)
+            }
+            //printdata(block, count, data.pagenumber)
+          })
+      })
+      //console.log("- block: "+ count + ", page "+data.pagenumber+ ", hash: "+block.hash.toString("hex"))
 
-      }
+
+      
     }
     lastBlock = data.blocks[data.blocks.length-1]
 }
