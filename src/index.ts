@@ -8,10 +8,10 @@ import { DataBody } from '@dedis/cothority/byzcoin/proto';
 
 var roster: Roster;
 var ws: WebSocketAdapter;
-var firstBlockIDStart = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3" //"a6ace9568618f63df1c77544fafc56037bf249e4749fb287ca82cc55edc008f8";
+const firstBlockIDStart = "a6ace9568618f63df1c77544fafc56037bf249e4749fb287ca82cc55edc008f8" //"9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3"
               //DELETE contract: 30acb65139f5f9b479eaea33dae7ccf5704b3b0cf446dff1fb5d6b60b95caa59
-const pageSize = 1 //combien de blocks je veux          Expliquer que 20/20 est bon car testé deja
-const numPages = 1 //nombre de requete pour faire du streaming: 50 blocks, en 5 requete asynchrone. 
+const pageSize = 15 //combien de blocks je veux          Expliquer que 20/20 est bon car testé deja
+const numPages = 15 //nombre de requete pour faire du streaming: 50 blocks, en 5 requete asynchrone. 
 //nombre de block total: pagesize * numpages
 var nextIDB: string = ""
 var totalBlocks = 36440
@@ -33,88 +33,14 @@ export function sayHi() {
 
 }
 
-function printdata(block: SkipBlock, pageNum: number) {
-  const payload = block.payload
-  const body = DataBody.decode(payload)
-  console.log("- block: " + seenBlocks + ", page " + pageNum + ", hash: " + block.hash.toString(
-    "hex"))
-  body.txResults.forEach((transaction, i) => {
-    console.log("\n-- Transaction: " + i)
-    transaction.clientTransaction.instructions.forEach((instruction, j) => {
-      console.log("\n--- Instruction " + j)
-      console.log("\n---- Hash: " + instruction.hash().toString("hex"))
-      console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-      if (instruction.spawn !== null) {
-        console.log("\n---- spawn")
-      }
-      if (instruction.invoke !== null) {
-        console.log("\n---- invoke")
-      }
-    });
-  });
-  return 0
-}
-
-function browseClick(e: Event) {
-  ws = undefined
-  firstBlockIDStart = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3" 
-  nextIDB = ""
-  totalBlocks = 36440
-  seenBlocks = 0
-  matchfound = 0
-     
-  contractID = ""
-  blocks = []
-  instanceSearch = null
-  browse(pageSize, numPages, firstBlockIDStart, instanceSearch)
-}
-
-function browse(pageSizeB: number,
-  numPagesB: number, firstBlockID: string, instance: Instruction) {
-  instanceSearch = instance
-  var subjectBrowse = new Subject<[number, SkipBlock]>();
-  var pageDone = 0;
-  contractID = (document.getElementById("contractID") as HTMLInputElement).value
-  subjectBrowse.subscribe({
-    next: ([i, skipBlock]) => {
-      if (i == pageSizeB) {
-        pageDone++;
-        if (pageDone == numPagesB) {
-          if (skipBlock.forwardLinks.length != 0) {
-            nextIDB = skipBlock.forwardLinks[0].to.toString("hex");
-            pageDone = 0;
-            getNextBlocks(nextIDB, pageSizeB, numPagesB, subjectBrowse);
-          } else {
-            subjectBrowse.complete()
-          }
-        }
-      }
-    },
-    complete: () => {
-      console.log("Fin de la Blockchain")
-      console.log("closed")
-    },
-    error: (err: any) => {
-      console.log("error: ", err);
-      if (err === 1) {
-        console.log("Browse recall: " + 1)
-        browse(1, 1, nextIDB, instance)
-      }
-    }
-  });
-
-  getNextBlocks(firstBlockID, pageSizeB, numPagesB, subjectBrowse);
-  console.log(blocks)
-  return subjectBrowse
-}
-
 function show(e:Event){
   console.log(seenBlocks)
   showInstance(instanceSearch)
 }
 
 function showInstance(instance : Instruction){
-  browse(pageSize, numPages, firstBlockIDStart, instance)
+  console.log("Number of blocks seen: "+seenBlocks+", total should be: "+totalBlocks)
+  //browse(pageSize, numPages, firstBlockIDStart, instance)
   showSpawn(instance)
   showInvoke(instance)
   showDelete(instance)
@@ -171,6 +97,81 @@ function showDelete(instance:Instruction){
       }
     });
   });
+}
+
+function printdata(block: SkipBlock, pageNum: number) {
+  const payload = block.payload
+  const body = DataBody.decode(payload)
+  console.log("- block: " + seenBlocks + ", page " + pageNum + ", hash: " + block.hash.toString(
+    "hex"))
+  body.txResults.forEach((transaction, i) => {
+    console.log("\n-- Transaction: " + i)
+    transaction.clientTransaction.instructions.forEach((instruction, j) => {
+      console.log("\n--- Instruction " + j)
+      console.log("\n---- Hash: " + instruction.hash().toString("hex"))
+      console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
+      if (instruction.spawn !== null) {
+        console.log("\n---- spawn")
+      }
+      if (instruction.invoke !== null) {
+        console.log("\n---- invoke")
+      }
+    });
+  });
+  return 0
+}
+
+function browseClick(e: Event) {
+  ws = undefined
+  nextIDB = ""
+  totalBlocks = 36440
+  seenBlocks = 0
+  matchfound = 0
+     
+  contractID = ""
+  blocks = []
+  instanceSearch = null
+  browse(pageSize, numPages, firstBlockIDStart, instanceSearch)
+}
+
+function browse(pageSizeB: number,
+  numPagesB: number, firstBlockID: string, instance: Instruction) {
+  instanceSearch = instance
+  var subjectBrowse = new Subject<[number, SkipBlock]>();
+  var pageDone = 0;
+  contractID = (document.getElementById("contractID") as HTMLInputElement).value
+  subjectBrowse.subscribe({
+    next: ([i, skipBlock]) => {
+      if (i == pageSizeB) {
+        pageDone++;
+        if (pageDone == numPagesB) {
+          if (skipBlock.forwardLinks.length != 0) {
+            nextIDB = skipBlock.forwardLinks[0].to.toString("hex");
+            pageDone = 0;
+            getNextBlocks(nextIDB, pageSizeB, numPagesB, subjectBrowse);
+          } else {
+            subjectBrowse.complete()
+          }
+        }
+      }
+    },
+    complete: () => {
+      console.log("Fin de la Blockchain")
+      console.log("closed")
+    },
+    error: (err: any) => {
+      console.log("error: ", err);
+      if (err === 1) {
+        console.log("Browse recall: " + 1)
+        ws = undefined //To reset the websocket, create a new handler for the next function (of getnextblock)
+        browse(1, 1, nextIDB, instance)
+      }
+    }
+  });
+
+  getNextBlocks(firstBlockID, pageSizeB, numPagesB, subjectBrowse);
+  console.log(blocks)
+  return subjectBrowse
 }
 
 function getNextBlocks(
