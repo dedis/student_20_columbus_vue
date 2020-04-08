@@ -6,22 +6,29 @@ import { PaginateResponse, PaginateRequest } from '@dedis/cothority/byzcoin/prot
 import { Subject } from 'rxjs';
 import { DataBody } from '@dedis/cothority/byzcoin/proto';
 import * as d3 from 'd3';
+import { schemeBrBG } from 'd3';
 
 var roster: Roster;
 var ws: WebSocketAdapter;
-const firstBlockIDStart = "a6ace9568618f63df1c77544fafc56037bf249e4749fb287ca82cc55edc008f8" //"9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3"
+const firstBlockIDStart = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3" //"a6ace9568618f63df1c77544fafc56037bf249e4749fb287ca82cc55edc008f8" 
               //DELETE contract: 30acb65139f5f9b479eaea33dae7ccf5704b3b0cf446dff1fb5d6b60b95caa59
 const pageSize = 15 //combien de blocks je veux          Expliquer que 20/20 est bon car testé deja
 const numPages = 15 //nombre de requete pour faire du streaming: 50 blocks, en 5 requete asynchrone. 
 //nombre de block total: pagesize * numpages
 var nextIDB: string = ""
-var totalBlocks = 36440
+var totalBlocks = 36650
 var seenBlocks = 0
 var matchfound = 0
 
 var contractID = ""
 var blocks: SkipBlock[] = []
-var instanceSearch :Instruction
+var instanceSearch :Instruction = null
+
+var width = 1500
+var height = 500
+var widthText = 5
+var heightText = 30
+var svg: d3.Selection<SVGSVGElement, unknown, HTMLElement, any> = null
 
 export function sayHi() {
   roster = Roster.fromTOML(rosterStr);
@@ -31,6 +38,9 @@ export function sayHi() {
   }
   document.getElementById("browse").addEventListener("click", browseClick)
   document.getElementById("show").addEventListener("click", show)
+  svg = d3.select("body").append("svg").attr("width", width).attr("height", height)
+  svg.append("rect").attr("x", 0).attr("y", 0).attr("width", width)
+    .attr("height", height).attr("stroke", "black").attr("fill", "white").attr("stroke-width", "5")
 }
 
 function show(e:Event){
@@ -40,6 +50,7 @@ function show(e:Event){
 
 function showInstance(instance : Instruction){
   console.log("Number of blocks seen: "+seenBlocks+", total should be: "+totalBlocks)
+  console.log(instance)
   //browse(pageSize, numPages, firstBlockIDStart, instance)
   showSpawn(instance)
   showInvoke(instance)
@@ -57,6 +68,8 @@ function showSpawn(instance:Instruction){
           console.log("\n--- Instruction spawn")
           console.log("\n---- Hash: " + instruction.hash().toString("hex"))
           console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
+          svg.append("text").attr("x", widthText).attr("y", 0).text("InstanceID: "+instance.instanceID.toString("hex"))
+          svg.append("text").attr("x", widthText).attr("y", heightText).text("Spawn: BLASLABNLABR")
         }
       }
     });
@@ -64,6 +77,7 @@ function showSpawn(instance:Instruction){
 }
 
 function showInvoke(instance:Instruction){
+  svg.append("text").attr("x", 0).attr("y", 2*heightText).text("Invoke: BLABRFJEWIOFWEö")
   var j = 0
   for(let i = 0; i < blocks.length; i++){
     const payload = blocks[i].payload
@@ -76,6 +90,7 @@ function showInvoke(instance:Instruction){
             console.log("\n--- Instruction invoke :" + j++)
             console.log("\n---- Hash: " + instruction.hash().toString("hex"))
             console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
+            svg.append("text").attr("x", widthText).attr("y", (j+3)*heightText).text("InstanceID: "+instance.instanceID.toString("hex"))
           }
         }
       });
@@ -124,14 +139,13 @@ function printdata(block: SkipBlock, pageNum: number) {
 function browseClick(e: Event) {
   ws = undefined
   nextIDB = ""
-  totalBlocks = 36440
   seenBlocks = 0
   matchfound = 0
      
   contractID = ""
   blocks = []
-  instanceSearch = null
-  browse(pageSize, numPages, firstBlockIDStart, instanceSearch)
+  var inst = null
+  browse(pageSize, numPages, firstBlockIDStart, inst)
 }
 
 function browse(pageSizeB: number,
@@ -164,11 +178,10 @@ function browse(pageSizeB: number,
       if (err === 1) {
         console.log("Browse recall: " + 1)
         ws = undefined //To reset the websocket, create a new handler for the next function (of getnextblock)
-        browse(1, 1, nextIDB, instance)
+        browse(1, 1, nextIDB, instanceSearch)
       }
     }
   });
-
   getNextBlocks(firstBlockID, pageSizeB, numPagesB, subjectBrowse);
   console.log(blocks)
   return subjectBrowse
