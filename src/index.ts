@@ -24,7 +24,7 @@ var contractID = ""
 var blocks: SkipBlock[] = []
 var instanceSearch :Instruction = null
 
-var width = 1500
+var width = 1000
 var height = 500
 var widthText = 5
 var heightText = 30
@@ -39,7 +39,7 @@ export function sayHi() {
   document.getElementById("browse").addEventListener("click", browseClick)
   document.getElementById("show").addEventListener("click", show)
   svg = d3.select("body").append("svg").attr("width", width).attr("height", height)
-  svg.append("rect").attr("x", 0).attr("y", 0).attr("width", width)
+  svg.append("viewbox").attr("x", 0).attr("y", 0).attr("width", width)
     .attr("height", height).attr("stroke", "black").attr("fill", "white").attr("stroke-width", "5")
 }
 
@@ -53,8 +53,8 @@ function showInstance(instance : Instruction){
   console.log(instance)
   //browse(pageSize, numPages, firstBlockIDStart, instance)
   showSpawn(instance)
-  showInvoke(instance)
-  showDelete(instance)
+  var j = showInvoke(instance)
+  showDelete(instance, j)
 
 }
 
@@ -77,7 +77,7 @@ function showSpawn(instance:Instruction){
 }
 
 function showInvoke(instance:Instruction){
-  svg.append("text").attr("x", 0).attr("y", 2*heightText).text("Invoke: BLABRFJEWIOFWEö")
+  svg.append("text").attr("x", widthText).attr("y", 2*heightText).text("Invoke: BLABRFJEWIOFWEö")
   var j = 0
   for(let i = 0; i < blocks.length; i++){
     const payload = blocks[i].payload
@@ -90,15 +90,17 @@ function showInvoke(instance:Instruction){
             console.log("\n--- Instruction invoke :" + j++)
             console.log("\n---- Hash: " + instruction.hash().toString("hex"))
             console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-            svg.append("text").attr("x", widthText).attr("y", (j+3)*heightText).text("InstanceID: "+instance.instanceID.toString("hex"))
+            svg.append("text").attr("x", widthText).attr("y", (j+2)*heightText).text("InstanceID: "+instance.instanceID.toString("hex"))
           }
         }
       });
     });
   }
+  return j
 }
 
-function showDelete(instance:Instruction){
+function showDelete(instance:Instruction, j:number){
+  svg.append("text").attr("x", widthText).attr("y", (j+3)*heightText).text("Delete: BLABRFJEWIOFWEö")
   const payload = blocks[blocks.length-1].payload
   const body = DataBody.decode(payload)
   body.txResults.forEach((transaction) => {
@@ -108,6 +110,7 @@ function showDelete(instance:Instruction){
           console.log("\n--- Instruction delete 1")
           console.log("\n---- Hash: " + instruction.hash().toString("hex"))
           console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
+          svg.append("text").attr("x", widthText).attr("y", (j+4)*heightText).text("InstanceID: "+instance.instanceID.toString("hex"))
         }
       }
     });
@@ -159,7 +162,7 @@ function browse(pageSizeB: number,
       if (i == pageSizeB) {
         pageDone++;
         if (pageDone == numPagesB) {
-          if (skipBlock.forwardLinks.length != 0) {
+          if (skipBlock.forwardLinks.length != 0 && seenBlocks < 4000) {
             nextIDB = skipBlock.forwardLinks[0].to.toString("hex");
             pageDone = 0;
             getNextBlocks(nextIDB, pageSizeB, numPagesB, subjectBrowse);
@@ -172,6 +175,7 @@ function browse(pageSizeB: number,
     complete: () => {
       console.log("Fin de la Blockchain")
       console.log("closed")
+      showInstance(instanceSearch)
     },
     error: (err: any) => {
       console.log("error: ", err);
