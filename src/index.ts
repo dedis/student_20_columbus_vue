@@ -5,6 +5,7 @@ import { ByzCoinRPC, Instruction } from '@dedis/cothority/byzcoin';
 import { PaginateResponse, PaginateRequest } from '@dedis/cothority/byzcoin/proto/stream';
 import { Subject } from 'rxjs';
 import { DataBody } from '@dedis/cothority/byzcoin/proto';
+import * as d3 from 'd3';
 
 var roster: Roster;
 var ws: WebSocketAdapter;
@@ -30,7 +31,6 @@ export function sayHi() {
   }
   document.getElementById("browse").addEventListener("click", browseClick)
   document.getElementById("show").addEventListener("click", show)
-
 }
 
 function show(e:Event){
