@@ -1,29 +1,48 @@
 <!-- index.html -->
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <script src="dist/bundle.min.js" type="text/javascript"></script>
-  </head>
-  <body>
-    <h1>Columbus</h1>
-    <div class="top-wrapper">
-      <div class="form">
-         <div class="navigation">
-          <div class="row">
-            <button id="browse">Search ID</button><br>
-            <input type="text" id="contractID" value="cab579cd7b9241526c85d075411ee3123d3a36560ef88a367a340cc587e6ebb4"/><br>
-            <button id="show">Number of blocks seen already</button><br>
-        </div>
-         </div>
-       </div>
-    </div>
-  </body>
-  <script>
-    jsapp.sayHi();
-  </script>
-    <style>
-        button#load-button {
-            padding: 10px 25px;
-        }
-    </style>
+
+<head>
+  <meta charset="UTF-8">
+  <script src="dist/bundle.min.js" type="text/javascript"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <h1>Columbus</h1>
+
+  <div id="buttons">
+    <button id="browse">Search ID</button><br>
+    <input type="text" id="contractID" value="cab579cd7b9241526c85d075411ee3123d3a36560ef88a367a340cc587e6ebb4" /><br>
+    <button id="show">Number of blocks seen already</button><br>
+  </div>
+
+  <a href="#"><div id="btnrot" class="fa fa-chevron-right rotate"></div></a>
+
+</body>
+<script>
+  jsapp.sayHi();
+</script>
+<style>
+  div#container {
+    height: 500;
+    width: 1500;
+    border: 5px solid #000;
+    overflow: scroll;
+  }
+
+  svg#textHolder {
+    position: relative;
+    height: 500;
+    width: 1500;
+    background-color: orange;
+  }
+
+  .rotate {
+    transition: all .0s linear;
+  }
+  .rotate.down {
+    transform:rotate(90deg);
+  }
+</style>
+
 </html>
