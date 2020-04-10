@@ -6,7 +6,7 @@ import { PaginateResponse, PaginateRequest } from '@dedis/cothority/byzcoin/prot
 import { Subject } from 'rxjs';
 import { DataBody } from '@dedis/cothority/byzcoin/proto';
 import * as d3 from 'd3';
-import { schemeBrBG } from 'd3';
+import { schemeBrBG, svg } from 'd3';
 
 var roster: Roster;
 var ws: WebSocketAdapter;
@@ -28,7 +28,8 @@ var width = 1000
 var height = 500
 var widthText = 5
 var heightText = 30
-var svg: d3.Selection<SVGSVGElement, unknown, HTMLElement, any> = null
+var container = null
+var textHolder: d3.Selection<SVGSVGElement, unknown, HTMLElement, any>  = null
 
 export function sayHi() {
   roster = Roster.fromTOML(rosterStr);
@@ -38,9 +39,24 @@ export function sayHi() {
   }
   document.getElementById("browse").addEventListener("click", browseClick)
   document.getElementById("show").addEventListener("click", show)
-  svg = d3.select("body").append("svg").attr("width", width).attr("height", height)
-  svg.append("viewbox").attr("x", 0).attr("y", 0).attr("width", width)
-    .attr("height", height).attr("stroke", "black").attr("fill", "white").attr("stroke-width", "5")
+  // div#container
+  container = d3.select('body').append('div').attr('id','container');
+  // svg#sky
+  textHolder = container.append('svg').attr('id', 'textHolder');
+  console.log(document)
+
+  document.getElementById("btnrot").addEventListener("click", function(){
+    document.getElementById("btnrot").classList.toggle("down")
+  })
+  var newBut = document.createElement('btnrot')
+  textHolder.append('btnrot').attr('id', 'newBut').attr("x", 10).attr("y", 10)
+
+
+}
+
+function expandTextHolder(i : number){
+  var currentheight = parseInt(d3.select("svg").style("height"),10)
+  d3.select("svg").style("height", currentheight + i * heightText)
 }
 
 function show(e:Event){
@@ -68,8 +84,10 @@ function showSpawn(instance:Instruction){
           console.log("\n--- Instruction spawn")
           console.log("\n---- Hash: " + instruction.hash().toString("hex"))
           console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-          svg.append("text").attr("x", widthText).attr("y", 0).text("InstanceID: "+instance.instanceID.toString("hex"))
-          svg.append("text").attr("x", widthText).attr("y", heightText).text("Spawn: BLASLABNLABR")
+          expandTextHolder(2)
+          d3.select('svg').append("form")
+          textHolder.append("text").attr("x", widthText).attr("y", 0).text("InstanceID: "+instance.instanceID.toString("hex"))
+          textHolder.append("text").attr("x", widthText).attr("y", heightText).text("Spawn: BLASLABNLABR")
         }
       }
     });
@@ -77,7 +95,8 @@ function showSpawn(instance:Instruction){
 }
 
 function showInvoke(instance:Instruction){
-  svg.append("text").attr("x", widthText).attr("y", 2*heightText).text("Invoke: BLABRFJEWIOFWEö")
+  expandTextHolder(1)
+  textHolder.append("text").attr("x", widthText).attr("y", 2*heightText).text("Invoke: BLABRFJEWIOFWEö")
   var j = 0
   for(let i = 0; i < blocks.length; i++){
     const payload = blocks[i].payload
@@ -90,7 +109,11 @@ function showInvoke(instance:Instruction){
             console.log("\n--- Instruction invoke :" + j++)
             console.log("\n---- Hash: " + instruction.hash().toString("hex"))
             console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-            svg.append("text").attr("x", widthText).attr("y", (j+2)*heightText).text("InstanceID: "+instance.instanceID.toString("hex"))
+            expandTextHolder(1)
+            textHolder.append("text").attr("x", widthText).attr("y", (j+2)*heightText).text("InstanceID: "+instance.instanceID.toString("hex")).on("click", function(d){
+              textHolder.append("text").attr
+              console.log("TU AS CLIQUé "+instruction.hash().toString("hex"))
+            })
           }
         }
       });
@@ -100,7 +123,10 @@ function showInvoke(instance:Instruction){
 }
 
 function showDelete(instance:Instruction, j:number){
-  svg.append("text").attr("x", widthText).attr("y", (j+3)*heightText).text("Delete: BLABRFJEWIOFWEö")
+  expandTextHolder(1)
+  textHolder.append("text").attr("x", widthText).attr("y", (j+3)*heightText).text("Delete: BLABRFJEWIOFWEö")
+  textHolder.attr("x", width *2).attr("y", height *2)
+  
   const payload = blocks[blocks.length-1].payload
   const body = DataBody.decode(payload)
   body.txResults.forEach((transaction) => {
@@ -110,11 +136,17 @@ function showDelete(instance:Instruction, j:number){
           console.log("\n--- Instruction delete 1")
           console.log("\n---- Hash: " + instruction.hash().toString("hex"))
           console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-          svg.append("text").attr("x", widthText).attr("y", (j+4)*heightText).text("InstanceID: "+instance.instanceID.toString("hex"))
+          expandTextHolder(1)
+          textHolder.append("text").attr("x", widthText).attr("y", (j+4)*heightText).text(" InstanceID: "+instance.instanceID.toString("hex"))
         }
       }
     });
   });
+  for(let i = 0; i < 10; i++){
+    expandTextHolder(1)
+    textHolder.append("text").attr("x", widthText).attr("y", (i+j+5)*heightText).text("YOLLETST + " +  i+ "  : "+instance.instanceID.toString("hex"))
+
+  }
 }
 
 function printdata(block: SkipBlock, pageNum: number) {
@@ -162,7 +194,7 @@ function browse(pageSizeB: number,
       if (i == pageSizeB) {
         pageDone++;
         if (pageDone == numPagesB) {
-          if (skipBlock.forwardLinks.length != 0 && seenBlocks < 4000) {
+          if (skipBlock.forwardLinks.length != 0 && seenBlocks < 5) {
             nextIDB = skipBlock.forwardLinks[0].to.toString("hex");
             pageDone = 0;
             getNextBlocks(nextIDB, pageSizeB, numPagesB, subjectBrowse);
