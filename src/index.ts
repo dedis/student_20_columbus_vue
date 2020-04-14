@@ -144,8 +144,12 @@ function showDelete(instance:Instruction, j:number){
   });
   for(let i = 0; i < 10; i++){
     expandTextHolder(1)
-    textHolder.append("text").attr("x", widthText).attr("y", (i+j+5)*heightText).text("YOLLETST + " +  i+ "  : "+instance.instanceID.toString("hex"))
-
+    textHolder.append("svg").html(`
+    <g transform="matrix(5.13774e-17,0.839057,-0.839057,5.13774e-17,449.703,40.2358)">
+        <path d="M0,500L250,0L500,500" style="fill:none;stroke:black;stroke-width:99.65px;"/>
+    </g>
+`).attr("x", widthText).attr("y", (i+j+5)*heightText-20).attr("width", 15).attr("height", heightText).attr("viewBox", "0 0 500 500")
+    textHolder.append("text").attr("x", widthText+20).attr("y", (i+j+5)*heightText).text("YOLLETST + " +  i+ "  : "+instance.instanceID.toString("hex"))
   }
 }
 
