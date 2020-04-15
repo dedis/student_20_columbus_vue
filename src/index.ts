@@ -1,12 +1,11 @@
 import { Roster, WebSocketAdapter } from '@dedis/cothority/network';
 import { SkipBlock } from '@dedis/cothority/skipchain';
 import { WebSocketConnection } from '@dedis/cothority/network/connection';
-import { ByzCoinRPC, Instruction } from '@dedis/cothority/byzcoin';
+import { ByzCoinRPC, Instruction, Argument } from '@dedis/cothority/byzcoin';
 import { PaginateResponse, PaginateRequest } from '@dedis/cothority/byzcoin/proto/stream';
 import { Subject } from 'rxjs';
 import { DataBody } from '@dedis/cothority/byzcoin/proto';
 import * as d3 from 'd3';
-import { schemeBrBG, svg } from 'd3';
 
 var roster: Roster;
 var ws: WebSocketAdapter;
@@ -24,12 +23,7 @@ var contractID = ""
 var blocks: SkipBlock[] = []
 var instanceSearch :Instruction = null
 
-var width = 1000
-var height = 500
-var widthText = 5
-var heightText = 30
-var container = null
-var textHolder: d3.Selection<SVGSVGElement, unknown, HTMLElement, any>  = null
+var container: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>
 
 export function sayHi() {
   roster = Roster.fromTOML(rosterStr);
@@ -39,25 +33,37 @@ export function sayHi() {
   }
   document.getElementById("browse").addEventListener("click", browseClick)
   document.getElementById("show").addEventListener("click", show)
-  // div#container
-  container = d3.select('body').append('div').attr('id','container');
-  // svg#sky
-  textHolder = container.append('svg').attr('id', 'textHolder');
-  console.log(document)
-
-  document.getElementById("btnrot").addEventListener("click", function(){
-    document.getElementById("btnrot").classList.toggle("down")
-  })
-  var newBut = document.createElement('btnrot')
-  textHolder.append('btnrot').attr('id', 'newBut').attr("x", 10).attr("y", 10)
-
-
+  
+  container = d3.select("body").append("div").attr("id", "container")
 }
 
-function expandTextHolder(i : number){
-  var currentheight = parseInt(d3.select("svg").style("height"),10)
-  d3.select("svg").style("height", currentheight + i * heightText)
+function createText(texts: string[], args?: Argument[]){/*
+  var detailsHTML = container.append("details")
+  // Fetch all the details element.
+  const details = document.querySelectorAll("details");
+
+  // Add the onclick listeners.
+  details.forEach((targetDetail) => {
+    targetDetail.addEventListener("click", () => {
+      // Close all the details that are not targetDetail.
+      details.forEach((detail) => {
+        if (detail !== targetDetail) {
+          detail.removeAttribute("open");
+        }
+      });
+    });
+  });
+
+  detailsHTML.append("summary").text(texts[0])
+  for(let i = 1; i < texts.length; i++){
+    detailsHTML.append("p").text(texts[i]).on("click", () =>{
+      details.forEach((detail)=>{
+        detail.removeAttribute("open")
+      })
+    })
+  }*/
 }
+
 
 function show(e:Event){
   console.log(seenBlocks)
@@ -68,6 +74,9 @@ function showInstance(instance : Instruction){
   console.log("Number of blocks seen: "+seenBlocks+", total should be: "+totalBlocks)
   console.log(instance)
   //browse(pageSize, numPages, firstBlockIDStart, instance)
+
+  container.append("text").text("Instruction hash is: " +instance.hash().toString("hex"))
+  container.append("text").text("Instance ID is: " +instance.instanceID.toString("hex"))
   showSpawn(instance)
   var j = showInvoke(instance)
   showDelete(instance, j)
@@ -83,11 +92,9 @@ function showSpawn(instance:Instruction){
         if (instruction.spawn !== null) {
           console.log("\n--- Instruction spawn")
           console.log("\n---- Hash: " + instruction.hash().toString("hex"))
-          console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-          expandTextHolder(2)
-          d3.select('svg').append("form")
-          textHolder.append("text").attr("x", widthText).attr("y", 0).text("InstanceID: "+instance.instanceID.toString("hex"))
-          textHolder.append("text").attr("x", widthText).attr("y", heightText).text("Spawn: BLASLABNLABR")
+          console.log("\n---- ContractID: " + instruction.spawn.contractID)
+          createText(["Instruction spawn", "Hash: "+ instruction.hash().toString("hex"), "ContractID: " + instruction.spawn.contractID, 
+          "Args: "], instruction.spawn.args)
         }
       }
     });
@@ -95,9 +102,8 @@ function showSpawn(instance:Instruction){
 }
 
 function showInvoke(instance:Instruction){
-  expandTextHolder(1)
-  textHolder.append("text").attr("x", widthText).attr("y", 2*heightText).text("Invoke: BLABRFJEWIOFWEö")
   var j = 0
+
   for(let i = 0; i < blocks.length; i++){
     const payload = blocks[i].payload
     const body = DataBody.decode(payload)
@@ -108,12 +114,9 @@ function showInvoke(instance:Instruction){
           if (instruction.invoke !== null) {
             console.log("\n--- Instruction invoke :" + j++)
             console.log("\n---- Hash: " + instruction.hash().toString("hex"))
-            console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-            expandTextHolder(1)
-            textHolder.append("text").attr("x", widthText).attr("y", (j+2)*heightText).text("InstanceID: "+instance.instanceID.toString("hex")).on("click", function(d){
-              textHolder.append("text").attr
-              console.log("TU AS CLIQUé "+instruction.hash().toString("hex"))
-            })
+            console.log("\n---- ContractID: " + instruction.invoke.contractID)
+            createText(["Instruction invoke", "Hash: "+ instruction.hash().toString("hex"), "ContractID: " + instruction.invoke.contractID, 
+            "Args: "], instruction.invoke.args)
           }
         }
       });
@@ -123,10 +126,6 @@ function showInvoke(instance:Instruction){
 }
 
 function showDelete(instance:Instruction, j:number){
-  expandTextHolder(1)
-  textHolder.append("text").attr("x", widthText).attr("y", (j+3)*heightText).text("Delete: BLABRFJEWIOFWEö")
-  textHolder.attr("x", width *2).attr("y", height *2)
-  
   const payload = blocks[blocks.length-1].payload
   const body = DataBody.decode(payload)
   body.txResults.forEach((transaction) => {
@@ -136,24 +135,13 @@ function showDelete(instance:Instruction, j:number){
           console.log("\n--- Instruction delete 1")
           console.log("\n---- Hash: " + instruction.hash().toString("hex"))
           console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-          expandTextHolder(1)
-          textHolder.append("text").attr("x", widthText).attr("y", (j+4)*heightText).text(" InstanceID: "+instance.instanceID.toString("hex"))
         }
       }
     });
   });
-  for(let i = 0; i < 10; i++){
-    expandTextHolder(1)
-    textHolder.append("svg").html(`
-    <g transform="matrix(5.13774e-17,0.839057,-0.839057,5.13774e-17,449.703,40.2358)">
-        <path d="M0,500L250,0L500,500" style="fill:none;stroke:black;stroke-width:99.65px;"/>
-    </g>
-`).attr("x", widthText).attr("y", (i+j+5)*heightText-20).attr("width", 15).attr("height", heightText).attr("viewBox", "0 0 500 500")
-    textHolder.append("text").attr("x", widthText+20).attr("y", (i+j+5)*heightText).text("YOLLETST + " +  i+ "  : "+instance.instanceID.toString("hex"))
-  }
 }
 
-function printdata(block: SkipBlock, pageNum: number) {
+function printdataConsole(block: SkipBlock, pageNum: number) {
   const payload = block.payload
   const body = DataBody.decode(payload)
   console.log("- block: " + seenBlocks + ", page " + pageNum + ", hash: " + block.hash.toString(
@@ -166,6 +154,7 @@ function printdata(block: SkipBlock, pageNum: number) {
       console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
       if (instruction.spawn !== null) {
         console.log("\n---- spawn")
+
       }
       if (instruction.invoke !== null) {
         console.log("\n---- invoke")
@@ -173,6 +162,84 @@ function printdata(block: SkipBlock, pageNum: number) {
     });
   });
   return 0
+}
+
+function printdataBox(block: SkipBlock, pageNum: number){
+
+  var detailsHTML = container.append("details")
+  detailsHTML.attr("id", "detailsChanged")
+  const payload = block.payload
+  const body = DataBody.decode(payload)
+  body.txResults.forEach((transaction, i)=>{
+    transaction.clientTransaction.instructions.forEach((instruction, j)=>{
+      
+
+
+      if (instruction.spawn !== null) {
+        detailsHTML.append("summary").text("Spawn with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
+        detailsHTML.append("p").text("ContractID: "+instruction.spawn.contractID)
+        var argsDetails = detailsHTML.append("details")
+        argsDetails.append("summary").text("args are:")
+        var my_list = argsDetails.append("ul")
+        instruction.spawn.args.forEach((arg, _) => {
+          my_list.append("li").text("Arg name : " +arg.name)
+          my_list.append("li").text("Arg value : " +arg.value)
+        });
+      }
+
+
+      else if (instruction.invoke !== null) {
+        detailsHTML.append("summary").text("Invoke with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
+        detailsHTML.append("p").text("ContractID: "+instruction.invoke.contractID)
+        var argsDetails = detailsHTML.append("details")
+        argsDetails.append("summary").text("args are:")
+        var my_list = argsDetails.append("ul")
+        instruction.invoke.args.forEach((arg, _) => {
+          my_list.append("li").text("Arg name : " +arg.name)
+          my_list.append("li").text("Arg value : " +arg.value)
+        });
+      }
+      else if(instruction.delete !== null){
+        detailsHTML.append("summary").text("Delete with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
+        detailsHTML.append("p").text("ContractID: "+instruction.delete.contractID)
+      }
+
+      var verifiersHTML = detailsHTML.append("details")
+      verifiersHTML.append("summary").text("Verifiers: "+block.verifiers.length)
+      block.verifiers.forEach((uid, j) => {
+        verifiersHTML.append("p").text("Verifier: "+j+" ID: "+uid.toString("hex"))
+      });
+      var backlinkHTML = detailsHTML.append("details")
+      backlinkHTML.append("summary").text("Backlinks: "+block.backlinks.length)
+      block.backlinks.forEach((value, j) => {
+        backlinkHTML.append("p").text("Backlink: "+j+" Value: "+value.toString("hex"))
+      });
+
+      var forwardlinkHTML = detailsHTML.append("details")
+      forwardlinkHTML.append("summary").text("ForwardLinks: "+block.forwardLinks.length)
+      block.forwardLinks.forEach((fl, j) => {
+        forwardlinkHTML.append("p").text("ForwardLink: "+j)
+        forwardlinkHTML.append("p").text("From: "+fl.from.toString("hex")+" Hash: "+fl.hash().toString("hex"))
+        forwardlinkHTML.append("p").text("signature: + " + fl.signature.sig.toString("hex"))
+      });
+    })
+  })
+
+    // Fetch all the details element.
+    const details = document.querySelectorAll("detailsChanged");
+
+    // Add the onclick listeners.
+    details.forEach((targetDetail) => {
+      targetDetail.addEventListener("click", () => {
+        // Close all the details that are not targetDetail.
+        details.forEach((detail) => {
+          
+          if (detail !== targetDetail) {
+            detail.removeAttribute("open");
+          }
+        });
+      });
+    });
 }
 
 function browseClick(e: Event) {
@@ -197,8 +264,8 @@ function browse(pageSizeB: number,
     next: ([i, skipBlock]) => {
       if (i == pageSizeB) {
         pageDone++;
-        if (pageDone == numPagesB) {
-          if (skipBlock.forwardLinks.length != 0 && seenBlocks < 5) {
+        if (pageDone == numPagesB && seenBlocks < 4000) {
+          if (skipBlock.forwardLinks.length != 0 ) {
             nextIDB = skipBlock.forwardLinks[0].to.toString("hex");
             pageDone = 0;
             getNextBlocks(nextIDB, pageSizeB, numPagesB, subjectBrowse);
@@ -316,7 +383,8 @@ function handlePageResponse(data: PaginateResponse, localws: WebSocketAdapter, s
             instanceSearch = instruction
             blocks.push(data.blocks[i])
           }
-          printdata(block, data.pagenumber)
+          printdataConsole(block, data.pagenumber)
+          printdataBox(block, data.pagenumber)
         }
       })
     })
