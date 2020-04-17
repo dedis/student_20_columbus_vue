@@ -11,6 +11,8 @@ var roster: Roster;
 var ws: WebSocketAdapter;
 const firstBlockIDStart = "9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3" //"a6ace9568618f63df1c77544fafc56037bf249e4749fb287ca82cc55edc008f8" 
               //DELETE contract: 30acb65139f5f9b479eaea33dae7ccf5704b3b0cf446dff1fb5d6b60b95caa59
+
+              /* contract with many spawn : 860df9524de58df307554e65f0bd05cbcaffeb6925e41c2eb58fd1b4fb9a3853*/
 const pageSize = 15 //combien de blocks je veux          Expliquer que 20/20 est bon car testé deja
 const numPages = 15 //nombre de requete pour faire du streaming: 50 blocks, en 5 requete asynchrone. 
 //nombre de block total: pagesize * numpages
@@ -26,234 +28,30 @@ var instanceSearch :Instruction = null
 var container: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>
 
 export function sayHi() {
+  //container can be set up later on
   roster = Roster.fromTOML(rosterStr);
   if (!roster) {
     console.log("Roster is undefined")
     return;
   }
-  document.getElementById("browse").addEventListener("click", browseClick)
-  document.getElementById("show").addEventListener("click", show)
-  
+  document.getElementById("browse").addEventListener("click", browseClick)  
   container = d3.select("body").append("div").attr("id", "container")
 }
 
-function createText(texts: string[], args?: Argument[]){/*
-  var detailsHTML = container.append("details")
-  // Fetch all the details element.
-  const details = document.querySelectorAll("details");
-
-  // Add the onclick listeners.
-  details.forEach((targetDetail) => {
-    targetDetail.addEventListener("click", () => {
-      // Close all the details that are not targetDetail.
-      details.forEach((detail) => {
-        if (detail !== targetDetail) {
-          detail.removeAttribute("open");
-        }
-      });
-    });
-  });
-
-  detailsHTML.append("summary").text(texts[0])
-  for(let i = 1; i < texts.length; i++){
-    detailsHTML.append("p").text(texts[i]).on("click", () =>{
-      details.forEach((detail)=>{
-        detail.removeAttribute("open")
-      })
-    })
-  }*/
-}
-
-
-function show(e:Event){
-  console.log(seenBlocks)
-  showInstance(instanceSearch)
-}
-
-function showInstance(instance : Instruction){
-  console.log("Number of blocks seen: "+seenBlocks+", total should be: "+totalBlocks)
-  console.log(instance)
-  //browse(pageSize, numPages, firstBlockIDStart, instance)
-
-  container.append("text").text("Instruction hash is: " +instance.hash().toString("hex"))
-  container.append("text").text("Instance ID is: " +instance.instanceID.toString("hex"))
-  showSpawn(instance)
-  var j = showInvoke(instance)
-  showDelete(instance, j)
-
-}
-
-function showSpawn(instance:Instruction){
-  const payload = blocks[0].payload
-  const body = DataBody.decode(payload)
-  body.txResults.forEach((transaction) => {
-    transaction.clientTransaction.instructions.forEach((instruction, j) => {
-      if(instruction.instanceID.toString("hex") === instance.instanceID.toString("hex")){
-        if (instruction.spawn !== null) {
-          console.log("\n--- Instruction spawn")
-          console.log("\n---- Hash: " + instruction.hash().toString("hex"))
-          console.log("\n---- ContractID: " + instruction.spawn.contractID)
-          createText(["Instruction spawn", "Hash: "+ instruction.hash().toString("hex"), "ContractID: " + instruction.spawn.contractID, 
-          "Args: "], instruction.spawn.args)
-        }
-      }
-    });
-  });
-}
-
-function showInvoke(instance:Instruction){
-  var j = 0
-
-  for(let i = 0; i < blocks.length; i++){
-    const payload = blocks[i].payload
-    const body = DataBody.decode(payload)
-    body.txResults.forEach((transaction) => {
-      transaction.clientTransaction.instructions.forEach((instruction) => {
-        if(instruction.instanceID.toString("hex") === instance.instanceID.toString("hex")){
-          matchfound++
-          if (instruction.invoke !== null) {
-            console.log("\n--- Instruction invoke :" + j++)
-            console.log("\n---- Hash: " + instruction.hash().toString("hex"))
-            console.log("\n---- ContractID: " + instruction.invoke.contractID)
-            createText(["Instruction invoke", "Hash: "+ instruction.hash().toString("hex"), "ContractID: " + instruction.invoke.contractID, 
-            "Args: "], instruction.invoke.args)
-          }
-        }
-      });
-    });
-  }
-  return j
-}
-
-function showDelete(instance:Instruction, j:number){
-  const payload = blocks[blocks.length-1].payload
-  const body = DataBody.decode(payload)
-  body.txResults.forEach((transaction) => {
-    transaction.clientTransaction.instructions.forEach((instruction) => {
-      if(instruction.instanceID.toString("hex") === instance.instanceID.toString("hex")){
-        if (instruction.delete !== null) {
-          console.log("\n--- Instruction delete 1")
-          console.log("\n---- Hash: " + instruction.hash().toString("hex"))
-          console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-        }
-      }
-    });
-  });
-}
-
-function printdataConsole(block: SkipBlock, pageNum: number) {
-  const payload = block.payload
-  const body = DataBody.decode(payload)
-  console.log("- block: " + seenBlocks + ", page " + pageNum + ", hash: " + block.hash.toString(
-    "hex"))
-  body.txResults.forEach((transaction, i) => {
-    console.log("\n-- Transaction: " + i)
-    transaction.clientTransaction.instructions.forEach((instruction, j) => {
-      console.log("\n--- Instruction " + j)
-      console.log("\n---- Hash: " + instruction.hash().toString("hex"))
-      console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-      if (instruction.spawn !== null) {
-        console.log("\n---- spawn")
-
-      }
-      if (instruction.invoke !== null) {
-        console.log("\n---- invoke")
-      }
-    });
-  });
-  return 0
-}
-
-function printdataBox(block: SkipBlock, pageNum: number){
-
-  var detailsHTML = container.append("details")
-  detailsHTML.attr("id", "detailsChanged")
-  const payload = block.payload
-  const body = DataBody.decode(payload)
-  body.txResults.forEach((transaction, i)=>{
-    transaction.clientTransaction.instructions.forEach((instruction, j)=>{
-      
-
-
-      if (instruction.spawn !== null) {
-        detailsHTML.append("summary").text("Spawn with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
-        detailsHTML.append("p").text("ContractID: "+instruction.spawn.contractID)
-        var argsDetails = detailsHTML.append("details")
-        argsDetails.append("summary").text("args are:")
-        var my_list = argsDetails.append("ul")
-        instruction.spawn.args.forEach((arg, _) => {
-          my_list.append("li").text("Arg name : " +arg.name)
-          my_list.append("li").text("Arg value : " +arg.value)
-        });
-      }
-
-
-      else if (instruction.invoke !== null) {
-        detailsHTML.append("summary").text("Invoke with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
-        detailsHTML.append("p").text("ContractID: "+instruction.invoke.contractID)
-        var argsDetails = detailsHTML.append("details")
-        argsDetails.append("summary").text("args are:")
-        var my_list = argsDetails.append("ul")
-        instruction.invoke.args.forEach((arg, _) => {
-          my_list.append("li").text("Arg name : " +arg.name)
-          my_list.append("li").text("Arg value : " +arg.value)
-        });
-      }
-      else if(instruction.delete !== null){
-        detailsHTML.append("summary").text("Delete with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
-        detailsHTML.append("p").text("ContractID: "+instruction.delete.contractID)
-      }
-
-      var verifiersHTML = detailsHTML.append("details")
-      verifiersHTML.append("summary").text("Verifiers: "+block.verifiers.length)
-      block.verifiers.forEach((uid, j) => {
-        verifiersHTML.append("p").text("Verifier: "+j+" ID: "+uid.toString("hex"))
-      });
-      var backlinkHTML = detailsHTML.append("details")
-      backlinkHTML.append("summary").text("Backlinks: "+block.backlinks.length)
-      block.backlinks.forEach((value, j) => {
-        backlinkHTML.append("p").text("Backlink: "+j+" Value: "+value.toString("hex"))
-      });
-
-      var forwardlinkHTML = detailsHTML.append("details")
-      forwardlinkHTML.append("summary").text("ForwardLinks: "+block.forwardLinks.length)
-      block.forwardLinks.forEach((fl, j) => {
-        forwardlinkHTML.append("p").text("ForwardLink: "+j)
-        forwardlinkHTML.append("p").text("From: "+fl.from.toString("hex")+" Hash: "+fl.hash().toString("hex"))
-        forwardlinkHTML.append("p").text("signature: + " + fl.signature.sig.toString("hex"))
-      });
-    })
-  })
-
-    // Fetch all the details element.
-    const details = document.querySelectorAll("detailsChanged");
-
-    // Add the onclick listeners.
-    details.forEach((targetDetail) => {
-      targetDetail.addEventListener("click", () => {
-        // Close all the details that are not targetDetail.
-        details.forEach((detail) => {
-          
-          if (detail !== targetDetail) {
-            detail.removeAttribute("open");
-          }
-        });
-      });
-    });
-}
-
+//Instead of a click on a button, it will be triggered when clicked on an instance  in a block. The inst variable must be step up to search for this instance in the whole blockchain.
 function browseClick(e: Event) {
+  container.selectAll("details").remove()
   ws = undefined
   nextIDB = ""
   seenBlocks = 0
   matchfound = 0
-     
   contractID = ""
   blocks = []
   var inst = null
   browse(pageSize, numPages, firstBlockIDStart, inst)
 }
 
+//Recursive to end the blockchain with any pagesize - numpages numbers : remove condition seenBlocks < 4000 to browse the whole blockchain
 function browse(pageSizeB: number,
   numPagesB: number, firstBlockID: string, instance: Instruction) {
   instanceSearch = instance
@@ -264,8 +62,8 @@ function browse(pageSizeB: number,
     next: ([i, skipBlock]) => {
       if (i == pageSizeB) {
         pageDone++;
-        if (pageDone == numPagesB && seenBlocks < 4000) {
-          if (skipBlock.forwardLinks.length != 0 ) {
+        if (pageDone == numPagesB) {
+          if (skipBlock.forwardLinks.length != 0  && seenBlocks < 4000) {
             nextIDB = skipBlock.forwardLinks[0].to.toString("hex");
             pageDone = 0;
             getNextBlocks(nextIDB, pageSizeB, numPagesB, subjectBrowse);
@@ -278,7 +76,6 @@ function browse(pageSizeB: number,
     complete: () => {
       console.log("Fin de la Blockchain")
       console.log("closed")
-      showInstance(instanceSearch)
     },
     error: (err: any) => {
       console.log("error: ", err);
@@ -391,6 +188,120 @@ function handlePageResponse(data: PaginateResponse, localws: WebSocketAdapter, s
   }
   return 0;
 }
+
+//function not needed for the merge: printing data in the console. If not taken: remove the call in handlePageResponse
+function printdataConsole(block: SkipBlock, pageNum: number) {
+  const payload = block.payload
+  const body = DataBody.decode(payload)
+  console.log("- block: " + seenBlocks + ", page " + pageNum + ", hash: " + block.hash.toString(
+    "hex"))
+  body.txResults.forEach((transaction, i) => {
+    console.log("\n-- Transaction: " + i)
+    transaction.clientTransaction.instructions.forEach((instruction, j) => {
+      console.log("\n--- Instruction " + j)
+      console.log("\n---- Hash: " + instruction.hash().toString("hex"))
+      console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
+      if (instruction.spawn !== null) {
+        console.log("\n---- spawn")
+
+      }
+      if (instruction.invoke !== null) {
+        console.log("\n---- invoke")
+      }
+    });
+  });
+}
+
+function printdataBox(block: SkipBlock, pageNum: number){
+
+  var detailsHTML = container.append("details")
+  detailsHTML.attr("class", "detailsParent")
+  const payload = block.payload
+  const body = DataBody.decode(payload)
+  body.txResults.forEach((transaction, i)=>{
+    transaction.clientTransaction.instructions.forEach((instruction, j)=>{
+
+      if (instruction.spawn !== null) {
+        detailsHTML.append("summary").text("Spawn with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
+        detailsHTML.append("p").text("ContractID: "+instruction.spawn.contractID)
+        var argsDetails = detailsHTML.append("details").attr("class", "detailsChild1")
+        argsDetails.append("summary").text("args are:")
+        var my_list = argsDetails.append("ul")
+        instruction.spawn.args.forEach((arg, _) => {
+          my_list.append("li").text("Arg name : " +arg.name)
+          my_list.append("li").text("Arg value : " +arg.value)
+        });
+      }
+      else if (instruction.invoke !== null) {
+        detailsHTML.append("summary").text("Invoke with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
+        detailsHTML.append("p").text("ContractID: "+instruction.invoke.contractID)
+        var argsDetails = detailsHTML.append("details").attr("class", "detailsChild1")
+        argsDetails.append("summary").text("args are:")
+        var my_list = argsDetails.append("ul")
+        instruction.invoke.args.forEach((arg, _) => {
+          my_list.append("li").text("Arg name : " +arg.name)
+          my_list.append("li").text("Arg value : " +arg.value)
+        });
+      }
+      else if(instruction.delete !== null){
+        detailsHTML.append("summary").text("Delete with instanceID: "+instruction.instanceID.toString("hex") + ", and Hash is: "+instruction.hash().toString("hex"))
+        detailsHTML.append("p").text("ContractID: "+instruction.delete.contractID)
+      }
+
+      var verifiersHTML = detailsHTML.append("details").attr("class", "detailsChild1")
+      verifiersHTML.append("summary").text("Verifiers: "+block.verifiers.length)
+      block.verifiers.forEach((uid, j) => {
+        verifiersHTML.append("p").text("Verifier: "+j+" ID: "+uid.toString("hex"))
+      });
+
+      var backlinkHTML = detailsHTML.append("details").attr("class", "detailsChild1")
+      backlinkHTML.append("summary").text("Backlinks: "+block.backlinks.length)
+      block.backlinks.forEach((value, j) => {
+        backlinkHTML.append("p").text("Backlink: "+j+" Value: "+value.toString("hex"))
+      });
+
+      var forwardlinkHTML = detailsHTML.append("details").attr("class", "detailsChild1")
+      forwardlinkHTML.append("summary").text("ForwardLinks: "+block.forwardLinks.length)
+      block.forwardLinks.forEach((fl, j) => {
+        forwardlinkHTML.append("p").text("ForwardLink: "+j)
+        forwardlinkHTML.append("p").text("From: "+fl.from.toString("hex")+" Hash: "+fl.hash().toString("hex"))
+        forwardlinkHTML.append("p").text("signature: + " + fl.signature.sig.toString("hex"))
+      });
+    })
+  })
+
+    // Fetch all the details element.
+    const detailsParent = document.querySelectorAll(".detailsParent");
+
+    // Add the onclick listeners.
+    detailsParent.forEach((targetDetail) => {
+      targetDetail.addEventListener("click", () => {
+        // Close all the details that are not targetDetail.
+        detailsParent.forEach((detail) => {
+          if (detail !== targetDetail) {
+            detail.removeAttribute("open");
+          }
+        });
+      });
+    });
+
+    // Fetch all the details element.
+    const detailsChild1 = document.querySelectorAll(".detailsChild1");
+
+    // Add the onclick listeners.
+    detailsChild1.forEach((targetDetail) => {
+      targetDetail.addEventListener("click", () => {
+        // Close all the details that are not targetDetail.
+        detailsChild1.forEach((detail) => {
+          
+          if (detail !== targetDetail) {
+            detail.removeAttribute("open");
+          }
+        });
+      });
+    });
+}
+
 
 function hex2Bytes(hex: string) {
   if (!hex) {
