@@ -377,7 +377,18 @@ function handlePageResponse(data: PaginateResponse, localws: WebSocketAdapter, s
     const body = DataBody.decode(payload)
     body.txResults.forEach((transaction) => {
       transaction.clientTransaction.instructions.forEach((instruction) => {
-        if (instruction.instanceID.toString("hex") === contractID) {
+        if (instruction.spawn !== null) {
+          console.log("deriveID: ", instruction.deriveId("").toString("hex"))
+          if (instruction.deriveId("").toString("hex") === contractID) {
+            console.log("*****************Contract match found as spawn*****************")
+            if(!blocks.includes(data.blocks[i])){
+              instanceSearch = instruction
+              blocks.push(data.blocks[i])
+            }
+            printdataConsole(block, data.pagenumber)
+            printdataBox(block, data.pagenumber)
+          }
+        } else if (instruction.instanceID.toString("hex") === contractID) {
           console.log("*****************Contract match found*****************")
           if(!blocks.includes(data.blocks[i])){
             instanceSearch = instruction
