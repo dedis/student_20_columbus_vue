@@ -27,6 +27,9 @@ var instanceSearch :Instruction = null
 
 var container: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>
 
+var myProgress: d3.Selection<HTMLDivElement, unknown, HTMLElement, any> =undefined
+var myBar: d3.Selection<HTMLDivElement, unknown, HTMLElement, any> = undefined
+
 export function sayHi() {
   //container can be set up later on
   roster = Roster.fromTOML(rosterStr);
@@ -48,7 +51,24 @@ function browseClick(e: Event) {
   contractID = ""
   blocks = []
   var inst = null
+  createProgressBar()
   browse(pageSize, numPages, firstBlockIDStart, inst)
+}
+
+function createProgressBar(){
+  if(myProgress == undefined && myBar == undefined){
+    myProgress = d3.select("body").append("div").attr("id", "myProgress")
+    myBar = myProgress.append("div").attr("id", "myBar")
+    myBar.text("0%")
+  }else{
+    var myBarElement = document.getElementById("myBar")
+    myBarElement.style.width = 1 + "%"
+  }
+}
+
+function updateProgressBar(i: number){
+  myBar.text(((i/totalBlocks) * 100) .toFixed(0)+ "%")
+  document.getElementById("myBar").style.width = (i/totalBlocks) * 100 + "%"
 }
 
 //Recursive to end the blockchain with any pagesize - numpages numbers : remove condition seenBlocks < 4000 to browse the whole blockchain
@@ -63,7 +83,7 @@ function browse(pageSizeB: number,
       if (i == pageSizeB) {
         pageDone++;
         if (pageDone == numPagesB) {
-          if (skipBlock.forwardLinks.length != 0  && seenBlocks < 4000) {
+          if (skipBlock.forwardLinks.length != 0) {
             nextIDB = skipBlock.forwardLinks[0].to.toString("hex");
             pageDone = 0;
             getNextBlocks(nextIDB, pageSizeB, numPagesB, subjectBrowse);
@@ -167,6 +187,7 @@ function handlePageResponse(data: PaginateResponse, localws: WebSocketAdapter, s
   var runCount = 0;
   for (var i = 0; i < data.blocks.length; i++) {
     seenBlocks++
+    updateProgressBar(seenBlocks)
     runCount++;
     var block = data.blocks[i]
     subjectBrowse.next([runCount, data.blocks[i]]);
