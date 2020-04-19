@@ -26,9 +26,9 @@ var blocks: SkipBlock[] = []
 var instanceSearch :Instruction = null
 
 var container: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>
-
 var myProgress: d3.Selection<HTMLDivElement, unknown, HTMLElement, any> =undefined
 var myBar: d3.Selection<HTMLDivElement, unknown, HTMLElement, any> = undefined
+var barText: d3.Selection<HTMLDivElement, unknown, HTMLElement, any> = undefined
 
 export function sayHi() {
   //container can be set up later on
@@ -59,15 +59,15 @@ function createProgressBar(){
   if(myProgress == undefined && myBar == undefined){
     myProgress = d3.select("body").append("div").attr("id", "myProgress")
     myBar = myProgress.append("div").attr("id", "myBar")
-    myBar.text("0%")
-  }else{
+    barText = myBar.append("div").attr("id", "barText").text("0%")
+  }else{ //used in case of rebrowsing
     var myBarElement = document.getElementById("myBar")
     myBarElement.style.width = 1 + "%"
   }
 }
 
 function updateProgressBar(i: number){
-  myBar.text(((i/totalBlocks) * 100) .toFixed(0)+ "%")
+  barText.text(((i/totalBlocks) * 100) .toFixed(0)+ "%")
   document.getElementById("myBar").style.width = (i/totalBlocks) * 100 + "%"
 }
 
