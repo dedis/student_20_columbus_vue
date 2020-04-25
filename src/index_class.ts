@@ -58,11 +58,11 @@ export class Browsing {
       return;
     }
     this.container = d3.select("body").append("div").attr("id", "container")
+    this.container.style("opacity", "0")
     document.getElementById("browse").addEventListener("click", this.browseClick.bind(this))
   }
 
   browseClick(this: Browsing) {
-    console.log(this)
     this.container.selectAll("details").remove()
     this.ws = undefined
     this.nextIDB = ""
@@ -79,7 +79,7 @@ export class Browsing {
     if (this.myProgress == undefined && this.myBar == undefined) {
       this.myProgress = d3.select("body").append("div").attr("id", "myProgress")
       this.myBar = this.myProgress.append("div").attr("id", "myBar")
-      this.barText = this.myBar.append("div").attr("id", "barText").text("0%")
+      this.barText = this.myProgress.append("div").attr("id", "barText").text("0%")
     } else {
       var myBarElement = document.getElementById("myBar")
       myBarElement.style.width = 1 + "%"
@@ -91,7 +91,7 @@ export class Browsing {
     document.getElementById("myBar").style.width = (i / this.totalBlocks) * 100 + "%"
   }
 
-  //Recursive to end the blockchain with any pagesize - numpages numbers : remove condition seenBlocks < 4000 to browse the whole blockchain
+  //Recursive to end the blockchain with any pagesize - numpages numbers 
   browse(pageSizeB: number,
     numPagesB: number, firstBlockID: string, instance: Instruction) {
     this.instanceSearch = instance
@@ -114,6 +114,8 @@ export class Browsing {
         }
       },
       complete: () => {
+        this.container.style("opacity", "1")
+        this.addTitle()
         console.log("Fin de la Blockchain")
         console.log("closed")
       },
@@ -122,7 +124,9 @@ export class Browsing {
         if (err === 1) {
           console.log("Browse recall: " + 1)
           this.ws = undefined //To reset the websocket, create a new handler for the next function (of getnextblock)
-          this.browse(1, 1, this.nextIDB, this.instanceSearch)
+          let pagesizeA = Math.trunc(pageSizeB/2)
+          let numPagesA = Math.trunc(numPagesB/2)
+          this.browse(pagesizeA, numPagesA, this.nextIDB, this.instanceSearch)
         }
       }
     });
@@ -219,15 +223,15 @@ export class Browsing {
               if (!this.blocks.includes(data.blocks[i])) {
                 this.instanceSearch = instruction
                 this.blocks.push(data.blocks[i])
+                this.printdataBox(block)
               }
-              this.printdataBox(block, data.pagenumber)
             }
           } else if (instruction.instanceID.toString("hex") === this.contractID) {
             if (!this.blocks.includes(block)) {
               this.instanceSearch = instruction
               this.blocks.push(block)
+              this.printdataBox(block)
             }
-            this.printdataBox(block, data.pagenumber)
           }
         })
       })
@@ -258,7 +262,7 @@ export class Browsing {
     });
   }
 
-  printdataBox(block: SkipBlock, pageNum: number) {
+  printdataBox(block: SkipBlock) {
 
     var detailsHTML = this.container.append("details")
     detailsHTML.attr("class", "detailsParent")
@@ -268,7 +272,7 @@ export class Browsing {
       transaction.clientTransaction.instructions.forEach((instruction, j) => {
         if (instruction.instanceID.toString("hex") === this.contractID) {
           if (instruction.spawn !== null) {
-            detailsHTML.append("summary").text("Spawn with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
+            detailsHTML.append("summary").text("Spawn instance: hash is: " + instruction.hash().toString("hex"))
             detailsHTML.append("p").text("ContractID: " + instruction.spawn.contractID)
             var argsDetails = detailsHTML.append("details").attr("class", "detailsChild1")
             argsDetails.append("summary").text("args are:")
@@ -279,7 +283,7 @@ export class Browsing {
             });
           }
           else if (instruction.invoke !== null) {
-            detailsHTML.append("summary").text("Invoke with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
+            detailsHTML.append("summary").text("Invoke instance: hash is: " + instruction.hash().toString("hex"))
             detailsHTML.append("p").text("ContractID: " + instruction.invoke.contractID)
             var argsDetails = detailsHTML.append("details").attr("class", "detailsChild1")
             argsDetails.append("summary").text("args are:")
@@ -290,7 +294,7 @@ export class Browsing {
             });
           }
           else if (instruction.delete !== null) {
-            detailsHTML.append("summary").text("Delete with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
+            detailsHTML.append("summary").text("Delete instance: hash is: " + instruction.hash().toString("hex"))
             detailsHTML.append("p").text("ContractID: " + instruction.delete.contractID)
           }
 
@@ -347,6 +351,11 @@ export class Browsing {
         });
       });
     });
+  }
+
+  addTitle(){
+    let title = this.container.append("div").attr("class","title").text("The instance ID searched is: "+this.instanceSearch.instanceID.toString("hex"))
+    title.lower()
   }
 
 

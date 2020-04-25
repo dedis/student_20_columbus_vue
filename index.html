@@ -18,31 +18,57 @@
   jsapp.sayHi();
 </script>
 <style>
-    div#container {
+  div#container {
     height: 500;
-    width: 1500;
-    border: 5px solid #000;
-    overflow: scroll;
+    width: 100%;
+    overflow-y: scroll;
+    overflow-x: none;
   }
+
   #myProgress {
-  width: 1500;
-  background-color: #ddd;
+    position: relative;
+    height: 30px;
+    width: 100%;
+    background-color: #ddd;
 
-}
+  }
 
-#myBar {
-  width: 1%;
-  height: 30px;
-  background-color: #4CAF50;
+  #myBar {
+    position: absolute;
+    width: 1%;
+    height: 30px;
+    background-color: #4CAF50;
 
-}
-#barText {
-  width: 1500;
-  height: 30px;
-  text-align:center;
-  color:black;
+  }
 
-}
+  #barText {
+    position: absolute;
+    width: 100%;
+    top:15%;
+    text-align: center;
+    color: black;
+  }
+
+  .detailsChild1 {
+    margin-left: 2%;
+    font-size: 17px;
+  }
+
+  .detailsParent {
+    margin-left: 1%;
+    font-size: 20px;
+    line-height: 100%;
+  }
+
+  p {
+    margin-left: 1%;
+    line-height: 0;
+  }
+
+  .title {
+    margin-left: 0.1%;
+    font-size: 24px;
+  }
 </style>
 
 </html>
