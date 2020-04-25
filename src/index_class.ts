@@ -50,9 +50,7 @@ export class Browsing {
     this.barText = undefined
   }
 
-
   sayHi() {
-    //container can be set up later on
     if (!this.roster) {
       console.log("Roster is undefined")
       return;
@@ -62,7 +60,6 @@ export class Browsing {
   }
 
   browseClick(this: Browsing) {
-    console.log(this)
     this.container.selectAll("details").remove()
     this.ws = undefined
     this.nextIDB = ""
@@ -193,7 +190,7 @@ export class Browsing {
     }
   }
 
-  handlePageResponse(data: PaginateResponse, localws: WebSocketAdapter, subjectBrowse: Subject<[number, SkipBlock]>) {
+  handlePageResponse2(data: PaginateResponse, localws: WebSocketAdapter, subjectBrowse: Subject<[number, SkipBlock]>) {
     if (data.errorcode != 0) {
       console.log(
         `got an error with code ${data.errorcode} : ${data.errortext}`
@@ -226,36 +223,57 @@ export class Browsing {
             if (!this.blocks.includes(block)) {
               this.instanceSearch = instruction
               this.blocks.push(block)
+              this.printdataBox(block, data.pagenumber)
             }
-            this.printdataBox(block, data.pagenumber)
           }
         })
       })
     }
     return 0;
   }
-
-  //function not needed for the merge: printing data in the console. If not taken: remove the call in handlePageResponse
-  printdataConsole(block: SkipBlock, pageNum: number) {
-    const payload = block.payload
-    const body = DataBody.decode(payload)
-    console.log("- block: " + this.seenBlocks + ", page " + pageNum + ", hash: " + block.hash.toString(
-      "hex"))
-    body.txResults.forEach((transaction, i) => {
-      console.log("\n-- Transaction: " + i)
-      transaction.clientTransaction.instructions.forEach((instruction, j) => {
-        console.log("\n--- Instruction " + j)
-        console.log("\n---- Hash: " + instruction.hash().toString("hex"))
-        console.log("\n---- Instance ID: " + instruction.instanceID.toString("hex"))
-        if (instruction.spawn !== null) {
-          console.log("\n---- spawn")
-
+  handlePageResponse(data: PaginateResponse, localws: WebSocketAdapter, subjectBrowse: Subject<[number, SkipBlock]>) {
+    if (data.errorcode != 0) {
+      console.log(
+        `got an error with code ${data.errorcode} : ${data.errortext}`
+      );
+      return 1;
+    }
+    if (localws !== undefined) {
+      this.ws = localws
+    }
+    let runCount = 0;
+    for (let i = 0; i < data.blocks.length; i++) {
+      let foundBlock = false
+      this.seenBlocks++
+      this.updateProgressBar(this.seenBlocks)
+      runCount++;
+      let block = data.blocks[i]
+      subjectBrowse.next([runCount, block]);
+      const payload = block.payload
+      const body = DataBody.decode(payload)
+      for(let j= 0; j < body.txResults.length && !foundBlock; j++){
+        let transaction = body.txResults[j]
+        for(let k = 0; k <transaction.clientTransaction.instructions.length && !foundBlock; k++){
+          let instruction = transaction.clientTransaction.instructions[k]
+          if (instruction.spawn !== null) {
+            if (instruction.deriveId("").toString("hex") === this.contractID) {
+              if (!this.blocks.includes(data.blocks[i])) {
+                this.instanceSearch = instruction
+                this.blocks.push(data.blocks[i])
+                this.printdataBox(block, data.pagenumber)
+              }
+            }
+          } else if (instruction.instanceID.toString("hex") === this.contractID) {
+            if (!this.blocks.includes(block)) {
+              this.instanceSearch = instruction
+              this.blocks.push(block)
+              this.printdataBox(block, data.pagenumber)
+            }
+          }
         }
-        if (instruction.invoke !== null) {
-          console.log("\n---- invoke")
-        }
-      });
-    });
+      }
+    }
+    return 0;
   }
 
   printdataBox(block: SkipBlock, pageNum: number) {
