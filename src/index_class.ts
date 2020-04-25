@@ -214,13 +214,19 @@ export class Browsing {
       const body = DataBody.decode(payload)
       body.txResults.forEach((transaction) => {
         transaction.clientTransaction.instructions.forEach((instruction) => {
-          if (instruction.instanceID.toString("hex") === this.contractID) {
-            console.log("*****************Contract match found*****************")
+          if (instruction.spawn !== null) {
+            if (instruction.deriveId("").toString("hex") === this.contractID) {
+              if (!this.blocks.includes(data.blocks[i])) {
+                this.instanceSearch = instruction
+                this.blocks.push(data.blocks[i])
+              }
+              this.printdataBox(block, data.pagenumber)
+            }
+          } else if (instruction.instanceID.toString("hex") === this.contractID) {
             if (!this.blocks.includes(block)) {
               this.instanceSearch = instruction
               this.blocks.push(block)
             }
-            this.printdataConsole(block, data.pagenumber)
             this.printdataBox(block, data.pagenumber)
           }
         })
@@ -260,53 +266,54 @@ export class Browsing {
     const body = DataBody.decode(payload)
     body.txResults.forEach((transaction, i) => {
       transaction.clientTransaction.instructions.forEach((instruction, j) => {
+        if (instruction.instanceID.toString("hex") === this.contractID) {
+          if (instruction.spawn !== null) {
+            detailsHTML.append("summary").text("Spawn with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
+            detailsHTML.append("p").text("ContractID: " + instruction.spawn.contractID)
+            var argsDetails = detailsHTML.append("details").attr("class", "detailsChild1")
+            argsDetails.append("summary").text("args are:")
+            var my_list = argsDetails.append("ul")
+            instruction.spawn.args.forEach((arg, _) => {
+              my_list.append("li").text("Arg name : " + arg.name)
+              my_list.append("li").text("Arg value : " + arg.value)
+            });
+          }
+          else if (instruction.invoke !== null) {
+            detailsHTML.append("summary").text("Invoke with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
+            detailsHTML.append("p").text("ContractID: " + instruction.invoke.contractID)
+            var argsDetails = detailsHTML.append("details").attr("class", "detailsChild1")
+            argsDetails.append("summary").text("args are:")
+            var my_list = argsDetails.append("ul")
+            instruction.invoke.args.forEach((arg, _) => {
+              my_list.append("li").text("Arg name : " + arg.name)
+              my_list.append("li").text("Arg value : " + arg.value)
+            });
+          }
+          else if (instruction.delete !== null) {
+            detailsHTML.append("summary").text("Delete with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
+            detailsHTML.append("p").text("ContractID: " + instruction.delete.contractID)
+          }
 
-        if (instruction.spawn !== null) {
-          detailsHTML.append("summary").text("Spawn with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
-          detailsHTML.append("p").text("ContractID: " + instruction.spawn.contractID)
-          var argsDetails = detailsHTML.append("details").attr("class", "detailsChild1")
-          argsDetails.append("summary").text("args are:")
-          var my_list = argsDetails.append("ul")
-          instruction.spawn.args.forEach((arg, _) => {
-            my_list.append("li").text("Arg name : " + arg.name)
-            my_list.append("li").text("Arg value : " + arg.value)
+          var verifiersHTML = detailsHTML.append("details").attr("class", "detailsChild1")
+          verifiersHTML.append("summary").text("Verifiers: " + block.verifiers.length)
+          block.verifiers.forEach((uid, j) => {
+            verifiersHTML.append("p").text("Verifier: " + j + " ID: " + uid.toString("hex"))
+          });
+
+          var backlinkHTML = detailsHTML.append("details").attr("class", "detailsChild1")
+          backlinkHTML.append("summary").text("Backlinks: " + block.backlinks.length)
+          block.backlinks.forEach((value, j) => {
+            backlinkHTML.append("p").text("Backlink: " + j + " Value: " + value.toString("hex"))
+          });
+
+          var forwardlinkHTML = detailsHTML.append("details").attr("class", "detailsChild1")
+          forwardlinkHTML.append("summary").text("ForwardLinks: " + block.forwardLinks.length)
+          block.forwardLinks.forEach((fl, j) => {
+            forwardlinkHTML.append("p").text("ForwardLink: " + j)
+            forwardlinkHTML.append("p").text("From: " + fl.from.toString("hex") + " Hash: " + fl.hash().toString("hex"))
+            forwardlinkHTML.append("p").text("signature: + " + fl.signature.sig.toString("hex"))
           });
         }
-        else if (instruction.invoke !== null) {
-          detailsHTML.append("summary").text("Invoke with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
-          detailsHTML.append("p").text("ContractID: " + instruction.invoke.contractID)
-          var argsDetails = detailsHTML.append("details").attr("class", "detailsChild1")
-          argsDetails.append("summary").text("args are:")
-          var my_list = argsDetails.append("ul")
-          instruction.invoke.args.forEach((arg, _) => {
-            my_list.append("li").text("Arg name : " + arg.name)
-            my_list.append("li").text("Arg value : " + arg.value)
-          });
-        }
-        else if (instruction.delete !== null) {
-          detailsHTML.append("summary").text("Delete with instanceID: " + instruction.instanceID.toString("hex") + ", and Hash is: " + instruction.hash().toString("hex"))
-          detailsHTML.append("p").text("ContractID: " + instruction.delete.contractID)
-        }
-
-        var verifiersHTML = detailsHTML.append("details").attr("class", "detailsChild1")
-        verifiersHTML.append("summary").text("Verifiers: " + block.verifiers.length)
-        block.verifiers.forEach((uid, j) => {
-          verifiersHTML.append("p").text("Verifier: " + j + " ID: " + uid.toString("hex"))
-        });
-
-        var backlinkHTML = detailsHTML.append("details").attr("class", "detailsChild1")
-        backlinkHTML.append("summary").text("Backlinks: " + block.backlinks.length)
-        block.backlinks.forEach((value, j) => {
-          backlinkHTML.append("p").text("Backlink: " + j + " Value: " + value.toString("hex"))
-        });
-
-        var forwardlinkHTML = detailsHTML.append("details").attr("class", "detailsChild1")
-        forwardlinkHTML.append("summary").text("ForwardLinks: " + block.forwardLinks.length)
-        block.forwardLinks.forEach((fl, j) => {
-          forwardlinkHTML.append("p").text("ForwardLink: " + j)
-          forwardlinkHTML.append("p").text("From: " + fl.from.toString("hex") + " Hash: " + fl.hash().toString("hex"))
-          forwardlinkHTML.append("p").text("signature: + " + fl.signature.sig.toString("hex"))
-        });
       })
     })
 
